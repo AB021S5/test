@@ -1,0 +1,20 @@
+{
+  "name": "playwright-demo",
+  "version": "1.0.0",
+  "description": "Simple Playwright POM project for SC UAT login",
+  "main": "index.js",
+  "scripts": {
+    "clean:screenshots": "node -e \"const fs = require('fs'); const dir = 'screenshots'; if(fs.existsSync(dir)) { fs.readdirSync(dir).forEach(f => fs.unlinkSync(dir + '/' + f)); }\"",
+    "test": "npm run clean:screenshots && playwright test || npm run report",
+    "test:headed": "npm run clean:screenshots && playwright test --headed || npm run report",
+    "report": "playwright show-report"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "@playwright/test": "^1.59.1",
+    "dotenv": "^16.6.1"
+  }
+}
