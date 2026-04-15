@@ -15,8 +15,12 @@ on:
 
 jobs:
   run-tests:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     timeout-minutes: 45
+
+    defaults:
+      run:
+        working-directory: playwright-demo
 
     env:
       BASE_URL: ${{ secrets.BASE_URL }}
@@ -38,50 +42,50 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Validate required secrets
-        shell: bash
+        shell: pwsh
         run: |
-          missing=0
-          required=(
-            BASE_URL
-            LOGIN_USERNAME
-            LOGIN_PASSWORD
-            LOGIN_OTP
-            OFT_LOCAL_FROM_ACCOUNT_TYPE
-            OFT_LOCAL_TO_ACCOUNT_TYPE
-            OFT_LOCAL_AMOUNT
-            OFT_LOCAL_DESCRIPTION
-            OFT_EUR_FROM_ACCOUNT_TYPE
-            OFT_EUR_TO_ACCOUNT_TYPE
-            OFT_EUR_AMOUNT
-            OFT_EUR_DESCRIPTION
+          $required = @(
+            'BASE_URL',
+            'LOGIN_USERNAME',
+            'LOGIN_PASSWORD',
+            'LOGIN_OTP',
+            'OFT_LOCAL_FROM_ACCOUNT_TYPE',
+            'OFT_LOCAL_TO_ACCOUNT_TYPE',
+            'OFT_LOCAL_AMOUNT',
+            'OFT_LOCAL_DESCRIPTION',
+            'OFT_EUR_FROM_ACCOUNT_TYPE',
+            'OFT_EUR_TO_ACCOUNT_TYPE',
+            'OFT_EUR_AMOUNT',
+            'OFT_EUR_DESCRIPTION'
           )
 
-          for name in "${required[@]}"; do
-            if [ -z "${!name}" ]; then
-              echo "Missing required secret: $name"
-              missing=1
-            fi
-          done
+          $missing = @()
+          foreach ($name in $required) {
+            if ([string]::IsNullOrWhiteSpace((Get-Item -Path "Env:$name" -ErrorAction SilentlyContinue).Value)) {
+              $missing += $name
+            }
+          }
 
-          if [ "$missing" -eq 1 ]; then
-            exit 1
-          fi
+          if ($missing.Count -gt 0) {
+            $missing | ForEach-Object { Write-Host "Missing required secret: $_" }
+            throw 'Required secrets are missing.'
+          }
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: npm
-          cache-dependency-path: package-lock.json
+          cache-dependency-path: playwright-demo/package-lock.json
 
       - name: Install dependencies
         run: npm ci
 
       - name: Install Playwright browsers
-        run: npx playwright install --with-deps
+        run: npx playwright install
 
-      - name: Run own fund transfer tests
-        run: npx playwright test tests/own-fund-transfer.spec.js --reporter=line --retries=1
+      - name: Run full regression suite
+        run: npx playwright test --reporter=line --retries=1
 
       - name: Upload Playwright report
         if: always()
@@ -89,6 +93,6 @@ jobs:
         with:
           name: playwright-report
           path: |
-            playwright-report
-            test-results
+            playwright-demo/playwright-report
+            playwright-demo/test-results
           if-no-files-found: ignore
