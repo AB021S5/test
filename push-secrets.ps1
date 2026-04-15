@@ -32,6 +32,7 @@ try {
         $env:GITHUB_OWNER = $Owner
         $env:GITHUB_REPO = $Repo
         $env:ENV_FILE_PATH = $envFile
+        $env:NODE_PATH = Join-Path $PSScriptRoot "node_modules"
 
         $nodeScript = @'
 const fs = require("fs");
@@ -124,5 +125,6 @@ finally {
         Remove-Item Env:GITHUB_OWNER -ErrorAction SilentlyContinue
         Remove-Item Env:GITHUB_REPO -ErrorAction SilentlyContinue
         Remove-Item Env:ENV_FILE_PATH -ErrorAction SilentlyContinue
+        Remove-Item Env:NODE_PATH -ErrorAction SilentlyContinue
         Pop-Location
 }
