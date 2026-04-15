@@ -18,7 +18,7 @@ class LoginPage {
       await this.usernameInput.waitFor({ state: 'visible', timeout: 20000 });
     } catch (error) {
       // One retry helps when the login page loads slowly or redirects.
-      await this.page.reload({ waitUntil: 'domcontentloaded' });
+      await this.page.goto('/', { waitUntil: 'domcontentloaded' });
       await this.usernameInput.waitFor({ state: 'visible', timeout: 20000 });
     }
   }

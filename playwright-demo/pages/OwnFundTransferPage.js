@@ -10,8 +10,8 @@ class OwnFundTransferPage {
     // Account selection — use label text to find dropdowns (stable across JSF re-renders)
     this.fromAccountEurSelect = page.locator("//label[contains(normalize-space(),'From Account')]/following-sibling::select | //select").first();
     this.fromAccountLocalOption = page.locator("//label[contains(normalize-space(),'From Account')]/following-sibling::select/option[5] | //select/option[5]").first();
-    this.toAccountLocalSelect = page.locator("//label[contains(normalize-space(),'Payee') or contains(normalize-space(),'To Account') or contains(normalize-space(),'Please Select')]/following-sibling::select | //select").nth(1);
-    this.toAccountUsdOption = page.locator("//label[contains(normalize-space(),'Payee') or contains(normalize-space(),'To Account')]/following-sibling::select//option[contains(normalize-space(),'USD') or contains(normalize-space(),'usd')] | //select//option[contains(normalize-space(),'USD')]").first();
+    this.toAccountLocalSelect = page.locator("//td[contains(normalize-space(),'Please Select a Payee or Account')]/following::select[1] | //select[last()]").first();
+    this.toAccountUsdOption = page.locator("(//td[contains(normalize-space(),'Please Select a Payee or Account')]/following::select[1] | //select[last()])//option[contains(normalize-space(),'USD') or contains(normalize-space(),'usd')]").first();
 
     // Flow buttons and inputs
     this.firstNextButton = page.locator("//*[@id='j_idt83']/div[4]/table/tbody/tr/td/div/a");
@@ -54,6 +54,8 @@ class OwnFundTransferPage {
   }
 
   async selectToAccount(type) {
+    await this.toAccountLocalSelect.waitFor({ state: 'visible', timeout: 30000 });
+
     if (String(type).toLowerCase() === 'usd') {
       const usdToValue = await this.toAccountUsdOption.getAttribute('value');
       if (!usdToValue) {
