@@ -29,6 +29,14 @@ jobs:
       LOGIN_PASSWORD: ${{ secrets.LOGIN_PASSWORD }}
       LOGIN_OTP: ${{ secrets.LOGIN_OTP }}
       HEADLESS: 'true'
+      OFT_LOCAL_FROM_ACCOUNT_TYPE: ${{ secrets.OFT_LOCAL_FROM_ACCOUNT_TYPE }}
+      OFT_LOCAL_TO_ACCOUNT_TYPE: ${{ secrets.OFT_LOCAL_TO_ACCOUNT_TYPE }}
+      OFT_LOCAL_AMOUNT: ${{ secrets.OFT_LOCAL_AMOUNT }}
+      OFT_LOCAL_DESCRIPTION: ${{ secrets.OFT_LOCAL_DESCRIPTION }}
+      OFT_EUR_FROM_ACCOUNT_TYPE: ${{ secrets.OFT_EUR_FROM_ACCOUNT_TYPE }}
+      OFT_EUR_TO_ACCOUNT_TYPE: ${{ secrets.OFT_EUR_TO_ACCOUNT_TYPE }}
+      OFT_EUR_AMOUNT: ${{ secrets.OFT_EUR_AMOUNT }}
+      OFT_EUR_DESCRIPTION: ${{ secrets.OFT_EUR_DESCRIPTION }}
 
     steps:
       - name: Checkout code
@@ -38,7 +46,11 @@ jobs:
         shell: powershell
         run: |
           $required = @(
-            'BASE_URL','LOGIN_USERNAME','LOGIN_PASSWORD','LOGIN_OTP'
+            'BASE_URL','LOGIN_USERNAME','LOGIN_PASSWORD','LOGIN_OTP',
+            'OFT_LOCAL_FROM_ACCOUNT_TYPE','OFT_LOCAL_TO_ACCOUNT_TYPE',
+            'OFT_LOCAL_AMOUNT','OFT_LOCAL_DESCRIPTION',
+            'OFT_EUR_FROM_ACCOUNT_TYPE','OFT_EUR_TO_ACCOUNT_TYPE',
+            'OFT_EUR_AMOUNT','OFT_EUR_DESCRIPTION'
           )
           $missing = @()
           foreach ($name in $required) {
@@ -77,10 +89,10 @@ jobs:
       - name: Install Playwright browsers
         run: npx playwright install
 
-      - name: Run selected smoke tests
+      - name: Run all test suites
         id: run_tests
         continue-on-error: true
-        run: npx playwright test tests/login.spec.js tests/casa-account-details.spec.js --retries=1
+        run: npx playwright test --retries=1
 
       - name: Upload Playwright report
         if: always()
