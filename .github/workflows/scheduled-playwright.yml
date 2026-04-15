@@ -84,8 +84,8 @@ jobs:
       - name: Install Playwright browsers
         run: npx playwright install --with-deps
 
-      - name: Run own fund transfer tests
-        run: npx playwright test tests/own-fund-transfer.spec.js --reporter=line --retries=1
+      - name: Run full regression suite
+        run: npx playwright test --reporter=line --retries=1
 
       - name: Upload Playwright report
         if: always()
