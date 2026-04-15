@@ -10,7 +10,8 @@ concurrency:
 on:
   schedule:
     # Runs daily at 9:45 PM IST (16:15 UTC).
-    - cron: '15 16 * * *'
+     # Runs daily at 9:30 PM IST (16:00 UTC). Test run at 16:37 UTC.
+     - cron: '37 16 * * *'
   workflow_dispatch:
 
 jobs:

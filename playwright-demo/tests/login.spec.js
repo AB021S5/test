@@ -2,30 +2,35 @@ const { test, expect } = require('@playwright/test');
 const { LoginPage } = require('../pages/LoginPage');
 const { testData } = require('../config/testData');
 const fs = require('fs');
+const path = require('path');
 
-async function ensureScreenshotsFolder() {
-  const screenshotsFolder = 'screenshots';
-  if (!fs.existsSync(screenshotsFolder)) {
-    fs.mkdirSync(screenshotsFolder, { recursive: true });
-  }
+const RUN_FOLDER = `screenshots/run_${new Date().toISOString().slice(0, 16).replace(/[T:]/g, '-')}`;
+
+function ensureRunFolder() {
+  if (!fs.existsSync(RUN_FOLDER)) fs.mkdirSync(RUN_FOLDER, { recursive: true });
+}
+
+async function snap(page, testInfo, name) {
+  ensureRunFolder();
+  const filePath = path.join(RUN_FOLDER, `${name}.png`);
+  await page.screenshot({ path: filePath, fullPage: true });
+  await testInfo.attach(name, { path: filePath, contentType: 'image/png' });
 }
 
 test('SC UAT login page test', async ({ page }, testInfo) => {
-  await ensureScreenshotsFolder();
-
   const loginPage = new LoginPage(page, testInfo);
 
-  // Open login page.
   await loginPage.openLoginPage();
   await expect(loginPage.usernameInput).toBeVisible();
-  const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-  const loginPageScreenshot = `screenshots/00_login_page_loaded_${timestamp}.png`;
-  await page.screenshot({ path: loginPageScreenshot });
-  await testInfo.attach('Login Page Loaded', { path: loginPageScreenshot, contentType: 'image/png' });
-  
-  // Complete login flow.
+  await snap(page, testInfo, '01_login_page_loaded');
+
   await loginPage.login(testData.username, testData.password);
+  await snap(page, testInfo, '02_after_username_password');
+
   await loginPage.enterOtp(testData.otp);
   await loginPage.clickNextButton();
+  await snap(page, testInfo, '03_after_otp');
+
   await loginPage.waitForAtAGlance();
+  await snap(page, testInfo, '04_at_a_glance_home');
 });

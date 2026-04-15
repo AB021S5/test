@@ -9,8 +9,8 @@ concurrency:
 
 on:
   schedule:
-    # Runs daily at 9:45 PM IST (16:15 UTC).
-    - cron: '15 16 * * *'
+     # Runs daily at 9:30 PM IST (16:00 UTC). Test run at 16:37 UTC.
+     - cron: '37 16 * * *'
   workflow_dispatch:
 
 jobs:
@@ -137,7 +137,7 @@ jobs:
           try {
             $outlook = New-Object -ComObject Outlook.Application
             $mail = $outlook.CreateItem(0)
-            $mail.To = 'lokesh.10699014@ltimindtree.com'
+            $mail.To = 'lokesh.jain@absa.africa'
             $mail.Subject = '[Playwright] Tests ' + $status + ' | ' + $date + ' UTC'
             $mail.HTMLBody = $body
             if ($hasReport) { $mail.Attachments.Add($zipPath) | Out-Null }
@@ -147,7 +147,7 @@ jobs:
               }
             }
             $mail.Send()
-            Write-Host 'Email sent to lokesh.10699014@ltimindtree.com'
+            Write-Host 'Email sent to lokesh.jain@absa.africa'
           } catch {
             Write-Host 'Warning: Could not send email via Outlook.'
             Write-Host $_.Exception.Message

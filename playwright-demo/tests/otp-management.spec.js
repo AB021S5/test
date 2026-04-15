@@ -1,44 +1,53 @@
 const { test, expect } = require('@playwright/test');
 const fs = require('fs');
+const path = require('path');
 const { LoginPage } = require('../pages/LoginPage');
 const { OtpManagementPage } = require('../pages/OtpManagementPage');
 const { testData } = require('../config/testData');
 
 test.setTimeout(120000);
 
-async function ensureScreenshotsFolder() {
-  const screenshotsFolder = 'screenshots';
-  if (!fs.existsSync(screenshotsFolder)) {
-    fs.mkdirSync(screenshotsFolder, { recursive: true });
-  }
+const RUN_FOLDER = `screenshots/run_${new Date().toISOString().slice(0, 16).replace(/[T:]/g, '-')}`;
+
+function ensureRunFolder() {
+  if (!fs.existsSync(RUN_FOLDER)) fs.mkdirSync(RUN_FOLDER, { recursive: true });
+}
+
+async function snap(page, testInfo, name) {
+  ensureRunFolder();
+  const filePath = path.join(RUN_FOLDER, `${name}.png`);
+  await page.screenshot({ path: filePath, fullPage: true });
+  await testInfo.attach(name, { path: filePath, contentType: 'image/png' });
 }
 
 test('SC UAT OTP management test', async ({ page }, testInfo) => {
-  await ensureScreenshotsFolder();
-
   const loginPage = new LoginPage(page, testInfo);
   const otpManagementPage = new OtpManagementPage(page, testInfo);
 
-  // Step 1: Sign in.
   await loginPage.openLoginPage();
   await expect(loginPage.usernameInput).toBeVisible();
+  await snap(page, testInfo, 'otp_01_login_page');
+
   await loginPage.login(testData.username, testData.password);
   await loginPage.enterOtp(testData.otp);
   await loginPage.clickNextButton();
   await loginPage.waitForAtAGlance();
+  await snap(page, testInfo, 'otp_02_home_page');
 
-  // Step 2: Open OTP Management from Customer Service menu.
   await otpManagementPage.openCustomerService();
+  await snap(page, testInfo, 'otp_03_customer_service_menu');
+
   await otpManagementPage.openOtpManagement();
+  await snap(page, testInfo, 'otp_04_otp_management_page');
 
-  // Step 3: Toggle OTP setting.
   await otpManagementPage.selectUnselectedRadioButton();
+  await snap(page, testInfo, 'otp_05_radio_selected');
 
-  // Step 4: Continue and confirm with OTP.
   await otpManagementPage.clickNextButton();
   await otpManagementPage.enterOtpAndSubmit(testData.otp);
+  await snap(page, testInfo, 'otp_06_otp_submitted');
 
-  // Step 5: Verify success message.
   await otpManagementPage.waitForSuccessScreen();
   await expect(otpManagementPage.successMessage).toBeVisible();
+  await snap(page, testInfo, 'otp_07_success');
 });
