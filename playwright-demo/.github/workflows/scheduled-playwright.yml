@@ -9,8 +9,8 @@ concurrency:
 
 on:
   schedule:
-    # Runs daily at 03:00 AM IST (21:30 UTC).
-    - cron: '30 21 * * *'
+    # Runs daily at 02:00 AM IST (20:30 UTC).
+    - cron: '30 20 * * *'
   workflow_dispatch:
 
 jobs:
