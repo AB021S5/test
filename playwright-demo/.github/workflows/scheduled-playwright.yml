@@ -1,4 +1,4 @@
-name: Scheduled Playwright Run
+﻿name: Scheduled Playwright Run
 
 permissions:
   contents: read
@@ -9,8 +9,8 @@ concurrency:
 
 on:
   schedule:
-    # Runs daily at 4:20 PM IST (10:50 UTC). Temporarily set 10 min ahead for test.
-    - cron: '32 15 * * *'
+    # Runs daily at 9:30 PM IST (16:00 UTC).
+    - cron: '0 16 * * *'
   workflow_dispatch:
 
 jobs:
@@ -59,7 +59,7 @@ jobs:
             }
           }
           if ($missing.Count -gt 0) {
-            $missing | ForEach-Object { Write-Host "Missing required secret: $_" }
+            $missing | ForEach-Object { Write-Host "Missing secret: $_" }
             throw 'Required secrets are missing.'
           }
           Write-Host "All required secrets are present."
@@ -74,7 +74,6 @@ jobs:
             Write-Host "App is reachable. Status: $($response.StatusCode)"
           } catch {
             Write-Host "ERROR: Cannot reach $url"
-            Write-Host "Reason: $_"
             Write-Host "Make sure this runner has network access to the internal app URL."
             throw 'App URL is not reachable from this runner. Aborting tests.'
           }
@@ -110,49 +109,48 @@ jobs:
         shell: powershell
         working-directory: ${{ github.workspace }}
         run: |
-          $outcome = "${{ steps.run_tests.outcome }}"
+          $outcome = '${{ steps.run_tests.outcome }}'
           $status  = if ($outcome -eq 'success') { 'PASSED' } else { 'FAILED' }
           $color   = if ($status -eq 'PASSED') { '#2e7d32' } else { '#c62828' }
           $date    = Get-Date -Format 'dd MMM yyyy HH:mm'
-
-          # Zip the HTML report for attachment
-          $reportDir = Join-Path $env:GITHUB_WORKSPACE "playwright-demo\playwright-report"
-          $zipPath   = Join-Path $env:RUNNER_TEMP "playwright-report.zip"
-          $hasReport = $false
+          $reportDir  = Join-Path $env:GITHUB_WORKSPACE 'playwright-demo\playwright-report'
+          $screensDir = Join-Path $env:GITHUB_WORKSPACE 'playwright-demo\screenshots'
+          $zipPath    = Join-Path $env:RUNNER_TEMP 'playwright-report.zip'
+          $hasReport  = $false
           if (Test-Path $reportDir) {
             Compress-Archive -Path $reportDir -DestinationPath $zipPath -Force
             $hasReport = $true
           }
-
-          $reportNote = if ($hasReport) {
-            'The full HTML report is attached as a ZIP file. Extract it and open index.html in a browser to view detailed results.'
+          $body  = '<html><body style="font-family:Arial,sans-serif;padding:20px;">'
+          $body += '<h2 style="color:' + $color + '">Playwright Tests: ' + $status + '</h2>'
+          $body += '<table style="border-collapse:collapse;margin-top:10px;">'
+          $body += '<tr><td style="padding:6px 16px 6px 0;"><b>Repository</b></td><td>AB021S5/test</td></tr>'
+          $body += '<tr><td style="padding:6px 16px 6px 0;"><b>Date / Time</b></td><td>' + $date + ' UTC</td></tr>'
+          $body += '<tr><td style="padding:6px 16px 6px 0;"><b>Result</b></td><td style="color:' + $color + ';font-weight:bold;">' + $status + '</td></tr>'
+          $body += '</table>'
+          if ($hasReport) {
+            $body += '<p>Full HTML report is attached as a ZIP. Extract and open index.html to view results.</p>'
           } else {
-            'No report was generated (tests may not have started).'
+            $body += '<p>No report was generated (tests may not have started).</p>'
           }
-
-          $body = @"
-<html><body style="font-family:Arial,sans-serif;padding:20px;">
-<h2 style="color:$color">Playwright Regression Tests: $status</h2>
-<table style="border-collapse:collapse;margin-top:10px;">
-  <tr><td style="padding:6px 16px 6px 0;"><b>Repository</b></td><td>AB021S5/test</td></tr>
-  <tr><td style="padding:6px 16px 6px 0;"><b>Date / Time</b></td><td>$date UTC</td></tr>
-  <tr><td style="padding:6px 16px 6px 0;"><b>Result</b></td><td style="color:$color;font-weight:bold;">$status</td></tr>
-</table>
-<p style="margin-top:16px;">$reportNote</p>
-</body></html>
-"@
-
+          $body += '</body></html>'
           try {
             $outlook = New-Object -ComObject Outlook.Application
             $mail = $outlook.CreateItem(0)
-            $mail.To = "lokesh.10699014@ltimindtree.com"
-            $mail.Subject = "[Playwright] Tests $status | $date UTC"
+            $mail.To = 'lokesh.10699014@ltimindtree.com'
+            $mail.Subject = '[Playwright] Tests ' + $status + ' | ' + $date + ' UTC'
             $mail.HTMLBody = $body
             if ($hasReport) { $mail.Attachments.Add($zipPath) | Out-Null }
+            if (Test-Path $screensDir) {
+              Get-ChildItem -Path $screensDir -Filter '*.png' | ForEach-Object {
+                $mail.Attachments.Add($_.FullName) | Out-Null
+              }
+            }
             $mail.Send()
-            Write-Host "Email sent to lokesh.10699014@ltimindtree.com"
+            Write-Host 'Email sent to lokesh.10699014@ltimindtree.com'
           } catch {
-            Write-Host "Warning: Could not send email via Outlook: $_"
+            Write-Host 'Warning: Could not send email via Outlook.'
+            Write-Host $_.Exception.Message
           }
 
       - name: Fail job if tests failed
