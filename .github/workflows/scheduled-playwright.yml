@@ -71,6 +71,21 @@ jobs:
             throw 'Required secrets are missing.'
           }
 
+      - name: Check app is reachable
+        shell: pwsh
+        run: |
+          $url = $env:BASE_URL
+          Write-Host "Checking connectivity to: $url"
+          try {
+            $response = Invoke-WebRequest -Uri $url -TimeoutSec 15 -UseBasicParsing -ErrorAction Stop
+            Write-Host "App is reachable. Status: $($response.StatusCode)"
+          } catch {
+            Write-Host "ERROR: Cannot reach $url"
+            Write-Host "Reason: $_"
+            Write-Host "Make sure this runner has network access to the internal app URL."
+            throw 'App URL is not reachable from this runner. Aborting tests.'
+          }
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
