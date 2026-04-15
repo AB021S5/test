@@ -7,11 +7,11 @@ class OwnFundTransferPage {
     this.transferAndPaymentMenu = page.locator("//*[@id='top_menu']/li[2]/a | //a[normalize-space()='Transfer & Payment']");
     this.fundTransferMenu = page.locator("//*[@id='menu']//a[contains(normalize-space(),'Fund Transfer')] | //a[normalize-space()='Fund Transfer']");
 
-    // Account selection
-    this.fromAccountEurSelect = page.locator("//*[@id='j_idt83:j_idt90']");
-    this.fromAccountLocalOption = page.locator("//*[@id='j_idt83:j_idt90']/option[5]");
-    this.toAccountLocalSelect = page.locator("//*[@id='j_idt83:j_idt88']/tbody/tr[2]/td[2]/select");
-    this.toAccountUsdOption = page.locator("//*[@id='j_idt83:j_idt88']/tbody/tr[2]/td[2]/select/optgroup[1]/option[3]");
+    // Account selection — use label text to find dropdowns (stable across JSF re-renders)
+    this.fromAccountEurSelect = page.locator("//label[contains(normalize-space(),'From Account')]/following-sibling::select | //select").first();
+    this.fromAccountLocalOption = page.locator("//label[contains(normalize-space(),'From Account')]/following-sibling::select/option[5] | //select/option[5]").first();
+    this.toAccountLocalSelect = page.locator("//label[contains(normalize-space(),'Payee') or contains(normalize-space(),'To Account') or contains(normalize-space(),'Please Select')]/following-sibling::select | //select").nth(1);
+    this.toAccountUsdOption = page.locator("//label[contains(normalize-space(),'Payee') or contains(normalize-space(),'To Account')]/following-sibling::select//option[contains(normalize-space(),'USD') or contains(normalize-space(),'usd')] | //select//option[contains(normalize-space(),'USD')]").first();
 
     // Flow buttons and inputs
     this.firstNextButton = page.locator("//*[@id='j_idt83']/div[4]/table/tbody/tr/td/div/a");
@@ -34,7 +34,7 @@ class OwnFundTransferPage {
     await this.page.waitForLoadState('domcontentloaded');
     await this.takeScreenshot('00_opened_fund_transfer_from_top_menu');
 
-    await this.fromAccountEurSelect.waitFor({ state: 'visible', timeout: 20000 });
+    await this.fromAccountEurSelect.waitFor({ state: 'visible', timeout: 45000 });
   }
 
   async selectFromAccount(type) {

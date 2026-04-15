@@ -4,14 +4,13 @@ class CasaAccountDetailsPage {
     this.testInfo = testInfo;
 
     // Update these XPath locators to match the real CASA screen in your app.
-    this.clickacct = page.locator("//*[@id='j_idt137:CASATable:tbody_element']/tr[1]/td[1]/a");
-    this.accountDetailsHeading = page.locator("//*[contains(., 'Account Details') or contains(., 'Acct Details') or //*[@id='detailForm:j_idt107']];");
-    
+    this.firstAccountLink = page.locator("//*[@id='j_idt137:CASATable:tbody_element']/tr[1]/td[1]/a");
+    this.accountDetailsHeading = page.locator("//a[normalize-space()='Account Details'] | //span[normalize-space()='Account Details'] | //*[contains(@class,'tab') and normalize-space()='Account Details']");
   }
 
   async clickacct() {
-    await this.clickacct.waitFor({ state: 'visible', timeout: 10000 });
-    await this.clickacct.click();
+    await this.firstAccountLink.waitFor({ state: 'visible', timeout: 10000 });
+    await this.firstAccountLink.click();
     await this.page.waitForLoadState('domcontentloaded');
     await this.page.waitForTimeout(2000);
     await this.takeScreenshot('01_casa_account_opened');
