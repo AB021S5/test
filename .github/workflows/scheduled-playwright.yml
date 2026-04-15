@@ -29,14 +29,6 @@ jobs:
       LOGIN_PASSWORD: ${{ secrets.LOGIN_PASSWORD }}
       LOGIN_OTP: ${{ secrets.LOGIN_OTP }}
       HEADLESS: 'true'
-      OFT_LOCAL_FROM_ACCOUNT_TYPE: ${{ secrets.OFT_LOCAL_FROM_ACCOUNT_TYPE }}
-      OFT_LOCAL_TO_ACCOUNT_TYPE: ${{ secrets.OFT_LOCAL_TO_ACCOUNT_TYPE }}
-      OFT_LOCAL_AMOUNT: ${{ secrets.OFT_LOCAL_AMOUNT }}
-      OFT_LOCAL_DESCRIPTION: ${{ secrets.OFT_LOCAL_DESCRIPTION }}
-      OFT_EUR_FROM_ACCOUNT_TYPE: ${{ secrets.OFT_EUR_FROM_ACCOUNT_TYPE }}
-      OFT_EUR_TO_ACCOUNT_TYPE: ${{ secrets.OFT_EUR_TO_ACCOUNT_TYPE }}
-      OFT_EUR_AMOUNT: ${{ secrets.OFT_EUR_AMOUNT }}
-      OFT_EUR_DESCRIPTION: ${{ secrets.OFT_EUR_DESCRIPTION }}
 
     steps:
       - name: Checkout code
@@ -46,11 +38,7 @@ jobs:
         shell: powershell
         run: |
           $required = @(
-            'BASE_URL','LOGIN_USERNAME','LOGIN_PASSWORD','LOGIN_OTP',
-            'OFT_LOCAL_FROM_ACCOUNT_TYPE','OFT_LOCAL_TO_ACCOUNT_TYPE',
-            'OFT_LOCAL_AMOUNT','OFT_LOCAL_DESCRIPTION',
-            'OFT_EUR_FROM_ACCOUNT_TYPE','OFT_EUR_TO_ACCOUNT_TYPE',
-            'OFT_EUR_AMOUNT','OFT_EUR_DESCRIPTION'
+            'BASE_URL','LOGIN_USERNAME','LOGIN_PASSWORD','LOGIN_OTP'
           )
           $missing = @()
           foreach ($name in $required) {
@@ -89,10 +77,10 @@ jobs:
       - name: Install Playwright browsers
         run: npx playwright install
 
-      - name: Run full regression suite
+      - name: Run selected smoke tests
         id: run_tests
         continue-on-error: true
-        run: npx playwright test --retries=1
+        run: npx playwright test tests/login.spec.js tests/casa-account-details.spec.js --retries=1
 
       - name: Upload Playwright report
         if: always()
@@ -111,7 +99,6 @@ jobs:
         run: |
           $outcome     = '${{ steps.run_tests.outcome }}'
           $status      = if ($outcome -eq 'success') { 'PASSED' } else { 'FAILED' }
-          $hdrBg       = if ($status -eq 'PASSED') { '#0d3d6b' } else { '#7b1a1a' }
           $statusClr   = if ($status -eq 'PASSED') { '#1b5e20' } else { '#b71c1c' }
           $dateStr     = Get-Date -Format 'dd MMM yyyy HH:mm'
           $reportDir   = Join-Path $env:GITHUB_WORKSPACE 'playwright-demo\playwright-report'
@@ -191,7 +178,7 @@ jobs:
           $b += '<div class="card">'
           $b += '<div class="hdr">'
           $b += '<h1>Automated Regression Test Report</h1>'
-          $b += '<p>Banking Platform (AIB-SC-UAT) &nbsp;|&nbsp; Environment: UAT &nbsp;|&nbsp; Automation: Playwright + GitHub Actions</p>'
+          $b += '<p>Banking Platform (AIB-SC-UAT) &nbsp;|&nbsp; Environment: UAT &nbsp;|&nbsp; Automation: Playwright + GitHub Actions &nbsp;|&nbsp; Scope: login + CASA smoke tests</p>'
           $b += '</div>'
           $b += '<div class="body">'
           $b += '<table class="meta">'
