@@ -165,13 +165,9 @@ jobs:
           $b  = '<!DOCTYPE html><html><head><meta charset="UTF-8"><style>'
           $b += 'body{margin:0;padding:20px;background:#eef2f7;font-family:Arial,Helvetica,sans-serif;color:#222;}'
           $b += '.card{max-width:840px;margin:0 auto;background:#fff;border-radius:8px;overflow:hidden;box-shadow:0 3px 14px rgba(0,0,0,.15);}'
-          $b += '.hdr{padding:22px 32px;color:#fff;background:' + $hdrBg + ';}'
-          $b += '.hdr-top{display:flex;justify-content:space-between;align-items:flex-start;}'
-          $b += '.hdr h1{margin:0 0 4px;font-size:19px;letter-spacing:.3px;}'
-          $b += '.hdr p{margin:0;font-size:12px;opacity:.8;}'
-          $b += '.badge-status{padding:5px 16px;border-radius:20px;font-size:13px;font-weight:bold;letter-spacing:.5px;}'
-          $b += '.badge-pass{background:#1b5e20;color:#fff;}'
-          $b += '.badge-fail{background:#b71c1c;color:#fff;}'
+          $b += '.hdr{padding:22px 32px;color:#000;background:#fff;border:2px solid #333;border-radius:6px;}'
+            $b += '.hdr h1{margin:0 0 8px;font-size:18px;letter-spacing:.3px;font-weight:bold;}'
+            $b += '.hdr p{margin:0;font-size:13px;color:#555;}'
           $b += '.body{padding:22px 32px;}'
           $b += '.meta{width:100%;border-collapse:collapse;margin-bottom:18px;font-size:13px;}'
           $b += '.meta td{padding:8px 12px;border:1px solid #e8e8e8;}'
@@ -193,15 +189,10 @@ jobs:
           $b += '.ftr{background:#f5f7fa;padding:13px 32px;font-size:11px;color:#999;border-top:1px solid #e8e8e8;text-align:center;}'
           $b += '</style></head><body>'
           $b += '<div class="card">'
-          $b += '<div class="hdr"><div class="hdr-top">'
-          $b += '<div><h1>Automated Regression Test Report</h1>'
-          $b += '<p>Application Under Test: AI Banking Platform (AIB-SC-UAT) &nbsp;|&nbsp; Environment: UAT &nbsp;|&nbsp; Automation: Playwright + GitHub Actions</p></div>'
-          if ($status -eq 'PASSED') {
-            $b += '<span class="badge-status badge-pass">&#10003; PASSED</span>'
-          } else {
-            $b += '<span class="badge-status badge-fail">&#10007; FAILED</span>'
-          }
-          $b += '</div></div>'
+          $b += '<div class="hdr">'
+          $b += '<h1>Automated Regression Test Report</h1>'
+          $b += '<p>Banking Platform (AIB-SC-UAT) &nbsp;|&nbsp; Environment: UAT &nbsp;|&nbsp; Automation: Playwright + GitHub Actions</p>'
+          $b += '</div>'
           $b += '<div class="body">'
           $b += '<table class="meta">'
           $b += '<tr><td>Repository</td><td>AB021S5/test</td></tr>'
@@ -235,7 +226,7 @@ jobs:
           $b += '</div>'
           $b += '<div class="ftr">This is an automated QA notification | AI Banking Platform Test Automation Suite | GitHub Actions Self-Hosted Runner | Do not reply to this email.</div>'
           $b += '</div></body></html>'
-          $subj = '[QA REPORT] AIB-SC-UAT | ' + $status + ' | ' + $passed + '/' + $total + ' Passed | ' + $dateStr + ' UTC'
+          $subj = '[Playwright Automation Report] AIB-SC-UAT | ' + $dateStr + ' UTC'
           try {
             $outlook = New-Object -ComObject Outlook.Application
             $mail    = $outlook.CreateItem(0)
