@@ -227,51 +227,17 @@ jobs:
           $b += '</div></body></html>'
           $subj = '[Playwright Automation Report] AIB-SC-UAT | ' + $dateStr + ' UTC'
           try {
-            $smtpServer = 'smtp.absa.co.za'
-            $smtpPort = 25
-            $senderAddr = 'ab021s5@absa.africa'
-            $toAddr = 'lokesh.jain@absa.africa'
-            $ccAddr = 'harshal.shindhe@absa.africa,santosh.swain@absa.africa,amruta.matre@absa.africa,puja.rane@absa.africa'
-            $boundary = '----' + [System.Guid]::NewGuid().ToString().Replace('-','')
-            $crlf = "`r`n"
-            $headers = "From: $senderAddr$crlf"
-            $headers += "To: $toAddr$crlf"
-            $headers += "CC: $ccAddr$crlf"
-            $headers += "Subject: $subj$crlf"
-            $headers += "MIME-Version: 1.0$crlf"
-            $headers += "Content-Type: multipart/mixed; boundary=`"$boundary`"$crlf$crlf"
-            $body = "--$boundary$crlf"
-            $body += "Content-Type: text/html; charset=UTF-8$crlf"
-            $body += "Content-Transfer-Encoding: 7bit$crlf$crlf"
-            $body += $b
-            $body += "$crlf--$boundary$crlf"
-            if ($hasReport) {
-              $body += "Content-Type: application/zip; name=`"playwright-report.zip`"$crlf"
-              $body += "Content-Transfer-Encoding: base64$crlf"
-              $body += "Content-Disposition: attachment; filename=`"playwright-report.zip`"$crlf$crlf"
-              $b64 = [System.Convert]::ToBase64String([System.IO.File]::ReadAllBytes($zipPath))
-              $body += $b64 -replace '.{76}', "$&$crlf"
-              $body += "$crlf--$boundary--"
-            } else {
-              $body += "--$crlf"
-            }
-            $smtpClient = New-Object System.Net.Mail.SmtpClient($smtpServer, $smtpPort)
-            $smtpClient.UseDefaultCredentials = $true
-            $msg = New-Object System.Net.Mail.MailMessage
-            $msg.From = $senderAddr
-            $msg.To.Add($toAddr)
-            foreach ($cc in $ccAddr -split ',') { $msg.CC.Add($cc.Trim()) }
-            $msg.Subject = $subj
-            $msg.Body = $body
-            $msg.IsBodyHtml = $false
-            $msg.Headers.Add('Content-Type', "multipart/mixed; boundary=`"$boundary`"")
-            if ($hasReport) { $msg.Attachments.Add($zipPath) }
-            $smtpClient.Send($msg)
-            $msg.Dispose()
-            $smtpClient.Dispose()
-            Write-Host "Email sent via SMTP: $subj"
+            $outlook = New-Object -ComObject Outlook.Application
+            $mail    = $outlook.CreateItem(0)
+            $mail.To = 'lokesh.jain@absa.africa'
+            $mail.CC = 'Harshal.Shindhe@absa.africa; Santosh.Swain@absa.africa;Amruta.Matre@absa.africa;Puja.Rane@absa.africa'
+            $mail.Subject = $subj
+            $mail.HTMLBody = $b
+            if ($hasReport) { $mail.Attachments.Add($zipPath) | Out-Null }
+            $mail.Send()
+            Write-Host "Email sent: $subj"
           } catch {
-            Write-Host 'Warning: Could not send email via SMTP.'
+            Write-Host 'Warning: Could not send email via Outlook.'
             Write-Host $_.Exception.Message
           }
 
