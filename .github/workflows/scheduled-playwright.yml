@@ -9,8 +9,8 @@ concurrency:
 
 on:
   schedule:
-    # Runs daily at 11:12 PM IST (16:42 UTC).
-    - cron: '42 16 * * *'
+    # Runs daily at 03:00 AM IST (21:30 UTC).
+    - cron: '30 21 * * *'
   workflow_dispatch:
 
 jobs:
@@ -229,7 +229,8 @@ jobs:
           try {
             $outlook = New-Object -ComObject Outlook.Application
             $mail    = $outlook.CreateItem(0)
-            $mail.To = 'lokesh.10699014@ltimindtree.com'
+            $mail.To = 'lokesh.jain@absa.africa'
+            $mail.CC = 'Harshal.Shindhe@absa.africa; Santosh.Swain@absa.africa;Amruta.Matre@absa.africa;Puja.Rane@absa.africa'
             $mail.Subject = $subj
             $mail.HTMLBody = $b
             if ($hasReport) { $mail.Attachments.Add($zipPath) | Out-Null }
