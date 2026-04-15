@@ -12,6 +12,7 @@ async function ensureScreenshotsFolder() {
 }
 
 test('SC UAT CASA account details test', async ({ page }, testInfo) => {
+  test.setTimeout(120000);
   await ensureScreenshotsFolder();
 
   const loginPage = new LoginPage(page, testInfo);

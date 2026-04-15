@@ -41,6 +41,7 @@ class LoginPage {
   }
 
   async enterOtp(otp) {
+    await this.otpInput.waitFor({ state: 'visible', timeout: 30000 });
     await this.otpInput.fill(otp);
     await this.takeScreenshot('04_otp_entered');
   }
