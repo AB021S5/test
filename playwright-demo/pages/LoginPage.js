@@ -8,7 +8,8 @@ class LoginPage {
     this.loginButton = page.locator("//a[contains(., 'Log in')]");
     this.otpInput = page.locator("//td[contains(., 'One Time Password')]/following::input[1] | //td[contains(., 'One Time Password')]/following::textarea[1]");
     this.nextButton = page.locator("//a[contains(., 'Next')]");
-    this.ataglance = page.locator("//a[contains(., 'At a Glance')]");
+    this.ataglance = page.locator("(//a[contains(normalize-space(),'At a Glance')] | //span[contains(normalize-space(),'At a Glance')])[1]");
+    this.transferAndPayment = page.locator("(//a[contains(normalize-space(),'Transfer & Payment')])[1]");
   }
   
   async openLoginPage() {
@@ -55,7 +56,25 @@ class LoginPage {
 
   async waitForAtAGlance() {
     await this.page.waitForLoadState('domcontentloaded');
-    await this.page.waitForTimeout(2000);
+
+    // Scheduled/headless runs are slower. Wait for a real post-login landmark.
+    const homeLandmarks = [this.ataglance, this.transferAndPayment];
+    let homeReady = false;
+
+    for (const landmark of homeLandmarks) {
+      try {
+        await landmark.waitFor({ state: 'visible', timeout: 20000 });
+        homeReady = true;
+        break;
+      } catch (error) {
+        // Try next landmark.
+      }
+    }
+
+    if (!homeReady) {
+      throw new Error('Login succeeded but home page landmarks were not visible.');
+    }
+
     await this.takeScreenshot('06_at_a_glance_screen');
   }
 

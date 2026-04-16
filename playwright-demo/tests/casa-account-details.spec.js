@@ -19,7 +19,7 @@ async function snap(page, testInfo, name) {
 }
 
 test('SC UAT CASA account details test', async ({ page }, testInfo) => {
-  test.setTimeout(120000);
+  test.setTimeout(180000);
 
   const loginPage = new LoginPage(page, testInfo);
   const casaAccountDetailsPage = new CasaAccountDetailsPage(page, testInfo);

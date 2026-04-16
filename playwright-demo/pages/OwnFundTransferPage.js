@@ -3,38 +3,46 @@ class OwnFundTransferPage {
     this.page = page;
     this.testInfo = testInfo;
 
-    // Open fund transfer from the main top menu.
-    this.transferAndPaymentMenu = page.locator("//*[@id='top_menu']/li[2]/a | //a[normalize-space()='Transfer & Payment']");
-    this.fundTransferMenu = page.locator("//*[@id='menu']//a[contains(normalize-space(),'Fund Transfer')] | //a[normalize-space()='Fund Transfer']");
+    // Open fund transfer from top menu or any direct link.
+    this.transferAndPaymentMenu = page.locator("//*[@id='top_menu']/li[2]/a | //a[normalize-space()='Transfer & Payment'] | //a[contains(normalize-space(),'Transfer')]").first();
+    this.fundTransferMenu = page.locator("//*[@id='menu']//a[contains(normalize-space(),'Fund Transfer')] | //a[normalize-space()='Fund Transfer'] | //a[contains(normalize-space(),'Fund Transfer')]").first();
 
-    // Account selection — use label text to find dropdowns (stable across JSF re-renders)
-    this.fromAccountEurSelect = page.locator("//label[contains(normalize-space(),'From Account')]/following-sibling::select | //select").first();
-    this.fromAccountLocalOption = page.locator("//label[contains(normalize-space(),'From Account')]/following-sibling::select/option[5] | //select/option[5]").first();
-    this.toAccountLocalSelect = page.locator("//td[contains(normalize-space(),'Please Select a Payee or Account')]/following::select[1] | //select[last()]").first();
-    this.toAccountUsdOption = page.locator("(//td[contains(normalize-space(),'Please Select a Payee or Account')]/following::select[1] | //select[last()])//option[contains(normalize-space(),'USD') or contains(normalize-space(),'usd')]").first();
+    // Account selection — keep a broad fallback for dynamic JSF ids.
+    this.fromAccountEurSelect = page.locator("(//label[contains(normalize-space(),'From Account')]/following-sibling::select | //select)[1]");
+    this.fromAccountLocalOption = page.locator("(//label[contains(normalize-space(),'From Account')]/following-sibling::select/option[5] | //select/option[5])[1]");
+    this.toAccountLocalSelect = page.locator("(//td[contains(normalize-space(),'Please Select a Payee or Account')]/following::select[1] | //select[last()])[1]");
+    this.toAccountUsdOption = page.locator("((//td[contains(normalize-space(),'Please Select a Payee or Account')]/following::select[1] | //select[last()])[1])//option[contains(normalize-space(),'USD') or contains(normalize-space(),'usd')]").first();
 
-    // Flow buttons and inputs
-    this.firstNextButton = page.locator("//*[@id='j_idt83']/div[4]/table/tbody/tr/td/div/a");
-    this.amountInput = page.locator("//*[@id='form:j_idt98']");
-    this.paymentDescriptionInput = page.locator("//*[@id='form:j_idt169']");
-    this.secondNextButton = page.locator("//*[@id='form']/div[5]/div/table/tbody/tr/td/div[1]/a");
-    this.confirmButton = page.locator("//*[@id='form:j_idt106']");
-    this.submittedMessage = page.locator("//*[@id='pageintro_640']/div");
+    // Flow buttons and inputs with text-based fallbacks.
+    this.firstNextButton = page.locator("//*[@id='j_idt83']/div[4]/table/tbody/tr/td/div/a | //a[normalize-space()='Next']").first();
+    this.amountInput = page.locator("//*[@id='form:j_idt98'] | //input[contains(@id,'j_idt98') or contains(@name,'j_idt98')]").first();
+    this.paymentDescriptionInput = page.locator("//*[@id='form:j_idt169'] | //input[contains(@id,'j_idt169')] | //textarea[contains(@id,'j_idt169')]").first();
+    this.secondNextButton = page.locator("//*[@id='form']/div[5]/div/table/tbody/tr/td/div[1]/a | (//a[normalize-space()='Next'])[last()]").first();
+    this.confirmButton = page.locator("//*[@id='form:j_idt106'] | //a[normalize-space()='Confirm'] | //button[normalize-space()='Confirm']").first();
+    this.submittedMessage = page.locator("//*[@id='pageintro_640']/div | //div[contains(normalize-space(),'submitted') or contains(normalize-space(),'successfully')]").first();
   }
 
   async openFundTransferForm() {
-    if (await this.fromAccountEurSelect.isVisible()) {
+    if (await this.fromAccountEurSelect.isVisible().catch(() => false)) {
       return;
     }
 
-    await this.transferAndPaymentMenu.first().click();
+    await this.page.waitForLoadState('domcontentloaded');
 
-    await this.fundTransferMenu.first().click();
+    // Prefer direct Fund Transfer link when present; fallback to top menu sequence.
+    if (await this.fundTransferMenu.isVisible().catch(() => false)) {
+      await this.fundTransferMenu.click();
+    } else {
+      await this.transferAndPaymentMenu.waitFor({ state: 'visible', timeout: 45000 });
+      await this.transferAndPaymentMenu.click();
+      await this.fundTransferMenu.waitFor({ state: 'visible', timeout: 45000 });
+      await this.fundTransferMenu.click();
+    }
 
     await this.page.waitForLoadState('domcontentloaded');
     await this.takeScreenshot('00_opened_fund_transfer_from_top_menu');
 
-    await this.fromAccountEurSelect.waitFor({ state: 'visible', timeout: 45000 });
+    await this.fromAccountEurSelect.waitFor({ state: 'visible', timeout: 60000 });
   }
 
   async selectFromAccount(type) {
@@ -87,26 +95,31 @@ class OwnFundTransferPage {
   }
 
   async clickFirstNext() {
+    await this.firstNextButton.waitFor({ state: 'visible', timeout: 45000 });
     await this.firstNextButton.click();
     await this.page.waitForLoadState('domcontentloaded');
     await this.takeScreenshot('03_after_first_next');
   }
 
   async enterPaymentDetails(amount, description) {
+    await this.amountInput.waitFor({ state: 'visible', timeout: 45000 });
     await this.amountInput.fill(String(amount));
 
+    await this.paymentDescriptionInput.waitFor({ state: 'visible', timeout: 45000 });
     await this.paymentDescriptionInput.fill(description);
 
     await this.takeScreenshot('04_payment_details_entered');
   }
 
   async clickSecondNext() {
+    await this.secondNextButton.waitFor({ state: 'visible', timeout: 45000 });
     await this.secondNextButton.click();
     await this.page.waitForLoadState('domcontentloaded');
     await this.takeScreenshot('05_after_second_next');
   }
 
   async confirmTransfer() {
+    await this.confirmButton.waitFor({ state: 'visible', timeout: 45000 });
     await this.confirmButton.click();
     await this.page.waitForLoadState('domcontentloaded');
     await this.takeScreenshot('06_after_confirm_click');

@@ -3,9 +3,9 @@ class CasaAccountDetailsPage {
     this.page = page;
     this.testInfo = testInfo;
 
-    // Update these XPath locators to match the real CASA screen in your app.
-    this.firstAccountLink = page.locator("//*[@id='j_idt137:CASATable:tbody_element']/tr[1]/td[1]/a");
-    this.accountDetailsHeading = page.locator("//a[normalize-space()='Account Details'] | //span[normalize-space()='Account Details'] | //*[contains(@class,'tab') and normalize-space()='Account Details']");
+    // Prefer stable text/class selectors; keep JSF id selector as fast path.
+    this.firstAccountLink = page.locator("//*[@id='j_idt137:CASATable:tbody_element']/tr[1]/td[1]/a | (//table[contains(@id,'CASATable')]//tr[1]//a)[1]").first();
+    this.accountDetailsHeading = page.locator("(//a[normalize-space()='Account Details'] | //span[normalize-space()='Account Details'] | //*[contains(@class,'tab') and normalize-space()='Account Details'])[1]");
   }
 
   async clickacct() {
