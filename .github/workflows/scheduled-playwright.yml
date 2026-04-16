@@ -229,6 +229,20 @@ jobs:
           try {
             $outlook = New-Object -ComObject Outlook.Application
             $mail    = $outlook.CreateItem(0)
+            $senderSmtp = 'lokesh.jain@absa.africa'
+            $sendAccount = $null
+            foreach ($acc in $outlook.Session.Accounts) {
+              if ($acc.SmtpAddress -and $acc.SmtpAddress.ToLower() -eq $senderSmtp) {
+                $sendAccount = $acc
+                break
+              }
+            }
+            if ($sendAccount -ne $null) {
+              $mail.SendUsingAccount = $sendAccount
+              Write-Host "Using Outlook account: $($sendAccount.SmtpAddress)"
+            } else {
+              Write-Host "Warning: Outlook account $senderSmtp not found in current VDI profile; using default account."
+            }
             $mail.To = 'lokesh.jain@absa.africa'
             $mail.CC = 'Harshal.Shindhe@absa.africa; Santosh.Swain@absa.africa;Amruta.Matre@absa.africa;Puja.Rane@absa.africa'
             $mail.Subject = $subj
