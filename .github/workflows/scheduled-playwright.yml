@@ -9,7 +9,7 @@ concurrency:
 
 on:
   schedule:
-    # Runs daily at 12:20 PM IST (07:50 UTC).
+    # Runs daily at 01:20 PM IST (07:50 UTC).
     - cron: '50 7 * * *'
   workflow_dispatch:
 
