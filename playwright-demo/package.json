@@ -4,9 +4,11 @@
   "description": "Simple Playwright POM project for SC UAT login",
   "main": "index.js",
   "scripts": {
-    "clean:screenshots": "node -e \"const fs = require('fs'); const dir = 'screenshots'; if(fs.existsSync(dir)) { fs.readdirSync(dir).forEach(f => fs.unlinkSync(dir + '/' + f)); }\"",
-    "test": "npm run clean:screenshots && playwright test || npm run report",
-    "test:headed": "npm run clean:screenshots && playwright test --headed || npm run report",
+    "maintenance:pre-run": "node scripts/maintenance-pre-run.js",
+    "clean:screenshots": "npm run maintenance:pre-run",
+    "clean:artifacts": "npm run maintenance:pre-run",
+    "test": "npm run maintenance:pre-run && playwright test",
+    "test:headed": "npm run maintenance:pre-run && playwright test --headed",
     "report": "playwright show-report"
   },
   "keywords": [],

@@ -24,11 +24,20 @@ jobs:
 
     env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
+      CI: 'true'
+      PW_TRACE_MODE: 'off'
+      PW_SCREENSHOT_KEEP_RUNS: '1'
+      PW_HTML_REPORT: '1'
       BASE_URL: ${{ secrets.BASE_URL }}
       LOGIN_USERNAME: ${{ secrets.LOGIN_USERNAME }}
       LOGIN_PASSWORD: ${{ secrets.LOGIN_PASSWORD }}
       LOGIN_OTP: ${{ secrets.LOGIN_OTP }}
       HEADLESS: 'true'
+      SMTP_HOST: ${{ secrets.SMTP_HOST }}
+      SMTP_PORT: ${{ secrets.SMTP_PORT }}
+      SMTP_USER: ${{ secrets.SMTP_USER }}
+      SMTP_PASS: ${{ secrets.SMTP_PASS }}
+      SMTP_ENABLE_SSL: ${{ secrets.SMTP_ENABLE_SSL }}
       OFT_LOCAL_FROM_ACCOUNT_TYPE: ${{ secrets.OFT_LOCAL_FROM_ACCOUNT_TYPE }}
       OFT_LOCAL_TO_ACCOUNT_TYPE: ${{ secrets.OFT_LOCAL_TO_ACCOUNT_TYPE }}
       OFT_LOCAL_AMOUNT: ${{ secrets.OFT_LOCAL_AMOUNT }}
@@ -89,10 +98,13 @@ jobs:
       - name: Install Playwright browsers
         run: npx playwright install
 
+      - name: Pre-run maintenance cleanup
+        run: npm run maintenance:pre-run
+
       - name: Run all test suites
         id: run_tests
         continue-on-error: true
-        run: npx playwright test --retries=1
+        run: npx playwright test --workers=1 --retries=1
 
       - name: Upload Playwright report
         if: always()
@@ -110,8 +122,6 @@ jobs:
         working-directory: ${{ github.workspace }}
         run: |
           $outcome     = '${{ steps.run_tests.outcome }}'
-          $status      = if ($outcome -eq 'success') { 'PASSED' } else { 'FAILED' }
-          $statusClr   = if ($status -eq 'PASSED') { '#1b5e20' } else { '#b71c1c' }
           $dateStr     = Get-Date -Format 'dd MMM yyyy HH:mm'
           $reportDir   = Join-Path $env:GITHUB_WORKSPACE 'playwright-demo\playwright-report'
           $resultsJson = Join-Path $env:GITHUB_WORKSPACE 'playwright-demo\test-results\results.json'
@@ -124,19 +134,65 @@ jobs:
           }
           $passed = 0; $failed = 0; $skipped = 0; $total = 0; $durSec = 0
           $rows = ''
+          function To-FeatureName($suiteName) {
+            if ([string]::IsNullOrWhiteSpace($suiteName)) { return 'Unknown' }
+            $parts = $suiteName -split '[-_]'
+            $titleParts = @()
+            foreach ($part in $parts) {
+              if (-not [string]::IsNullOrWhiteSpace($part)) {
+                $titleParts += (($part.Substring(0,1).ToUpper()) + $part.Substring(1).ToLower())
+              }
+            }
+            return ($titleParts -join ' ')
+          }
           function Get-TestRows($suite, $sName) {
             $out = ''
+            $featureName = To-FeatureName $sName
+            $suiteScreensDir = Join-Path $screensDir $sName
+            $suiteScreensPath = if (Test-Path $suiteScreensDir) { $suiteScreensDir } else { 'N/A' }
+            if (Test-Path $suiteScreensDir) {
+              $suiteIndexPath = Join-Path $suiteScreensDir 'index.html'
+              $pngFiles = Get-ChildItem -Path $suiteScreensDir -Filter *.png -File -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending
+              $indexRows = ''
+              foreach ($img in $pngFiles) {
+                $imgHref = 'file:///' + ($img.FullName -replace '\\', '/')
+                $indexRows += '<tr><td style="padding:8px 10px;border:1px solid #ddd;">' + $img.Name + '</td><td style="padding:8px 10px;border:1px solid #ddd;"><a href="' + $imgHref + '">Open</a></td></tr>'
+              }
+              if ([string]::IsNullOrWhiteSpace($indexRows)) {
+                $indexRows = '<tr><td colspan="2" style="padding:8px 10px;border:1px solid #ddd;">No screenshots found.</td></tr>'
+              }
+              $reportIndexPath = Join-Path $reportDir 'index.html'
+              $reportHref = if (Test-Path $reportIndexPath) { 'file:///' + ($reportIndexPath -replace '\\', '/') } else { '' }
+              $backLinkHtml = if ([string]::IsNullOrWhiteSpace($reportHref)) { '' } else { '<div style="margin-bottom:12px;"><a href="' + $reportHref + '" style="text-decoration:none;color:#0d3d6b;font-size:13px;">&larr; Back to report</a></div>' }
+              $indexHtml = '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>' + $sName + ' Screenshots</title></head><body style="font-family:Arial,Helvetica,sans-serif;padding:16px;">' + $backLinkHtml + '<h2 style="margin-top:0;">' + $sName + ' - Screenshots</h2><table style="border-collapse:collapse;width:100%;max-width:900px;"><tr><th style="text-align:left;padding:8px 10px;border:1px solid #ddd;background:#f2f5f8;">File</th><th style="text-align:left;padding:8px 10px;border:1px solid #ddd;background:#f2f5f8;">View</th></tr>' + $indexRows + '</table></body></html>'
+              Set-Content -Path $suiteIndexPath -Value $indexHtml -Encoding UTF8
+
+              $suiteScreensHref = 'file:///' + ($suiteIndexPath -replace '\\', '/')
+              $folderLink = '<a href="' + $suiteScreensHref + '" title="' + $suiteScreensPath + '" style="text-decoration:none;font-size:16px;">📁</a>'
+            } else {
+              $folderLink = 'N/A'
+            }
             foreach ($spec in $suite.specs) {
               foreach ($t in $spec.tests) {
                 $tDur = if ($t.results -and $t.results.Count -gt 0) { [math]::Round($t.results[-1].duration / 1000, 1) } else { '-' }
                 $retry = if ($t.results -and $t.results.Count -gt 1) { ' <em style="color:#666;font-size:11px;">(retried)</em>' } else { '' }
+                $rowFeatureName = $featureName
+                if ($sName -eq 'own-fund-transfer') {
+                  $titleText = ($spec.title + ' ' + $t.title).ToLower()
+                  if ($titleText -match 'local\s*to\s*local') {
+                    $rowFeatureName = 'Own Fund Transfer (Local to Local)'
+                  } elseif ($titleText -match 'eur\s*to\s*usd') {
+                    $rowFeatureName = 'Own Fund Transfer (EUR to USD)'
+                  }
+                }
                 if ($t.status -eq 'expected')   { $rBg = '#f0faf0'; $badge = 'PASS'; $bClr = '#1b5e20' }
                 elseif ($t.status -eq 'unexpected') { $rBg = '#fff0f0'; $badge = 'FAIL'; $bClr = '#b71c1c' }
                 elseif ($t.status -eq 'skipped') { $rBg = '#fffde7'; $badge = 'SKIP'; $bClr = '#e65100' }
                 else { $rBg = '#f5f5f5'; $badge = $t.status.ToUpper(); $bClr = '#555' }
                 $out += '<tr style="background:' + $rBg + ';">'
+                $out += '<td style="padding:7px 10px;border:1px solid #e0e0e0;">' + $rowFeatureName + '</td>'
                 $out += '<td style="padding:7px 10px;border:1px solid #e0e0e0;">' + $sName + '</td>'
-                $out += '<td style="padding:7px 10px;border:1px solid #e0e0e0;">' + $spec.title + $retry + '</td>'
+                $out += '<td style="padding:7px 10px;border:1px solid #e0e0e0;text-align:center;">' + $folderLink + '</td>'
                 $out += '<td style="padding:7px 10px;border:1px solid #e0e0e0;text-align:center;"><span style="background:' + $bClr + ';color:#fff;padding:2px 10px;border-radius:12px;font-size:11px;font-weight:bold;">' + $badge + '</span></td>'
                 $out += '<td style="padding:7px 10px;border:1px solid #e0e0e0;text-align:right;font-family:monospace;">' + $tDur + 's</td>'
                 $out += '</tr>'
@@ -161,12 +217,26 @@ jobs:
           $fRate = if ($total -gt 0) { [math]::Round(($failed  / $total) * 100, 0) } else { 0 }
           $sRate = if ($total -gt 0) { [math]::Round(($skipped / $total) * 100, 0) } else { 0 }
           $screensLink = if (Test-Path $screensDir) { $screensDir } else { 'N/A' }
+          $logoSrc = 'https://1000logos.net/wp-content/uploads/2022/09/Absa-logo.png'
+          $logoPathCandidates = @(
+            (Join-Path (Get-Location) 'playwright-demo/assets/absa-logo.png'),
+            (Join-Path (Get-Location) 'assets/absa-logo.png')
+          )
+          $logoPath = $logoPathCandidates | Where-Object { Test-Path $_ } | Select-Object -First 1
+          if ($logoPath) {
+            $logoBytes = [System.IO.File]::ReadAllBytes($logoPath)
+            $logoB64 = [System.Convert]::ToBase64String($logoBytes)
+            $logoSrc = 'data:image/png;base64,' + $logoB64
+          }
           $b  = '<!DOCTYPE html><html><head><meta charset="UTF-8"><style>'
           $b += 'body{margin:0;padding:20px;background:#eef2f7;font-family:Arial,Helvetica,sans-serif;color:#222;}'
           $b += '.card{max-width:840px;margin:0 auto;background:#fff;border-radius:8px;overflow:hidden;box-shadow:0 3px 14px rgba(0,0,0,.15);}'
           $b += '.hdr{padding:22px 32px;color:#000;background:#fff;border:2px solid #333;border-radius:6px;}'
+            $b += '.brand-row{display:flex;align-items:center;gap:12px;margin-bottom:8px;}'
+            $b += '.logo-img{height:40px;width:auto;display:block;border-radius:4px;}'
             $b += '.hdr h1{margin:0 0 8px;font-size:18px;letter-spacing:.3px;font-weight:bold;}'
             $b += '.hdr p{margin:0;font-size:13px;color:#555;}'
+            $b += '.hdr-divider{height:1px;background:#d9dee5;margin:10px 0 0;}'
           $b += '.body{padding:22px 32px;}'
           $b += '.meta{width:100%;border-collapse:collapse;margin-bottom:18px;font-size:13px;}'
           $b += '.meta td{padding:8px 12px;border:1px solid #e8e8e8;}'
@@ -189,8 +259,9 @@ jobs:
           $b += '</style></head><body>'
           $b += '<div class="card">'
           $b += '<div class="hdr">'
-          $b += '<h1>Automated Regression Test Report</h1>'
-          $b += '<p>Banking Platform (AIB-SC-UAT) &nbsp;|&nbsp; Environment: UAT &nbsp;|&nbsp; Automation: Playwright + GitHub Actions &nbsp;|&nbsp; Scope: login + CASA smoke tests</p>'
+          $b += '<div class="brand-row"><img class="logo-img" src="' + $logoSrc + '" alt="ABSA Logo" /><h1>Automated Regression Test Report</h1></div>'
+          $b += '<p>Banking Platform (AIB-SC-UAT) &nbsp;|&nbsp; Environment: UAT &nbsp;|&nbsp; Automation: Playwright + GitHub Actions</p>'
+          $b += '<div class="hdr-divider"></div>'
           $b += '</div>'
           $b += '<div class="body">'
           $b += '<table class="meta">'
@@ -198,7 +269,6 @@ jobs:
           $b += '<tr><td>Branch</td><td>main</td></tr>'
           $b += '<tr><td>Execution Date</td><td>' + $dateStr + ' UTC</td></tr>'
           $b += '<tr><td>Total Duration</td><td>' + $durSec + ' s</td></tr>'
-          $b += '<tr><td>Overall Result</td><td><strong style="color:' + $statusClr + ';font-size:15px;">' + $status + '</strong></td></tr>'
           $b += '<tr><td>Screenshots Folder</td><td style="font-family:monospace;font-size:12px;">' + $screensLink + '</td></tr>'
           $b += '</table>'
           $b += '<div class="kpi-row">'
@@ -213,7 +283,7 @@ jobs:
           $b += '</div>'
           if ($rows -ne '') {
             $b += '<p class="section-title">Test Case Execution Breakdown</p>'
-            $b += '<table class="tbl"><tr><th>Test Suite</th><th>Test Case</th><th style="text-align:center;width:80px;">Status</th><th style="text-align:right;width:80px;">Duration</th></tr>'
+            $b += '<table class="tbl"><tr><th>Test Case</th><th>Test Suite</th><th style="text-align:center;width:90px;">Screenshots</th><th style="text-align:center;width:80px;">Status</th><th style="text-align:right;width:80px;">Duration</th></tr>'
             $b += $rows
             $b += '</table>'
           }
@@ -225,34 +295,75 @@ jobs:
           $b += '</div>'
           $b += '<div class="ftr">This is an automated QA notification | AI Banking Platform Test Automation Suite | GitHub Actions Self-Hosted Runner | Do not reply to this email.</div>'
           $b += '</div></body></html>'
-          $subj = '[Playwright Automation Report] AIB-SC-UAT | ' + $dateStr + ' UTC'
-          try {
-            $outlook = New-Object -ComObject Outlook.Application
-            $mail    = $outlook.CreateItem(0)
-            $senderSmtp = 'lokesh.jain@absa.africa'
-            $sendAccount = $null
-            foreach ($acc in $outlook.Session.Accounts) {
-              if ($acc.SmtpAddress -and $acc.SmtpAddress.ToLower() -eq $senderSmtp) {
-                $sendAccount = $acc
-                break
+          $subj = 'Auto Genrated mail | Playwright Automation Report | AIB-SC-UAT | ' + $dateStr + ' UTC'
+          $toRecipients = 'lokesh.jain@absa.africa'
+          $ccRecipients = 'Harshal.Shindhe@absa.africa; Santosh.Swain@absa.africa;Amruta.Matre@absa.africa;Puja.Rane@absa.africa'
+          $emailSent = $false
+
+          Write-Host "Email diagnostics -> User: $env:USERNAME | Session: $env:SESSIONNAME | Host: $env:COMPUTERNAME"
+          if (-not [string]::IsNullOrWhiteSpace($env:SMTP_HOST) -and -not [string]::IsNullOrWhiteSpace($env:SMTP_USER) -and -not [string]::IsNullOrWhiteSpace($env:SMTP_PASS)) {
+            try {
+              $smtpPort = if ([string]::IsNullOrWhiteSpace($env:SMTP_PORT)) { 587 } else { [int]$env:SMTP_PORT }
+              $smtpEnableSsl = if ([string]::IsNullOrWhiteSpace($env:SMTP_ENABLE_SSL)) { $true } else { [bool]::Parse($env:SMTP_ENABLE_SSL) }
+
+              $smtpClient = New-Object System.Net.Mail.SmtpClient($env:SMTP_HOST, $smtpPort)
+              $smtpClient.EnableSsl = $smtpEnableSsl
+              $smtpClient.Credentials = New-Object System.Net.NetworkCredential($env:SMTP_USER, $env:SMTP_PASS)
+
+              $msg = New-Object System.Net.Mail.MailMessage
+              $msg.From = $env:SMTP_USER
+              foreach ($addr in ($toRecipients -split ';')) { if (-not [string]::IsNullOrWhiteSpace($addr)) { $msg.To.Add($addr.Trim()) } }
+              foreach ($addr in ($ccRecipients -split ';')) { if (-not [string]::IsNullOrWhiteSpace($addr)) { $msg.CC.Add($addr.Trim()) } }
+              $msg.Subject = $subj
+              $msg.Body = $b
+              $msg.IsBodyHtml = $true
+              if ($hasReport) { $msg.Attachments.Add($zipPath) | Out-Null }
+
+              $smtpClient.Send($msg)
+              $emailSent = $true
+              Write-Host "Email sent via SMTP fallback: $subj"
+            } catch {
+              Write-Host 'Warning: SMTP email send failed.'
+              Write-Host $_.Exception.Message
+              Write-Host $_.Exception.ToString()
+            }
+          }
+
+          if (-not $emailSent) {
+            try {
+              $outlook = New-Object -ComObject Outlook.Application
+              $mail    = $outlook.CreateItem(0)
+              $senderSmtp = 'lokesh.jain@absa.africa'
+              $sendAccount = $null
+              foreach ($acc in $outlook.Session.Accounts) {
+                if ($acc.SmtpAddress -and $acc.SmtpAddress.ToLower() -eq $senderSmtp) {
+                  $sendAccount = $acc
+                  break
+                }
               }
+              if ($sendAccount -ne $null) {
+                $mail.SendUsingAccount = $sendAccount
+                Write-Host "Using Outlook account: $($sendAccount.SmtpAddress)"
+              } else {
+                Write-Host "Warning: Outlook account $senderSmtp not found in current VDI profile; using default account."
+              }
+              $mail.To = $toRecipients
+              $mail.CC = $ccRecipients
+              $mail.Subject = $subj
+              $mail.HTMLBody = $b
+              if ($hasReport) { $mail.Attachments.Add($zipPath) | Out-Null }
+              $mail.Send()
+              $emailSent = $true
+              Write-Host "Email sent via Outlook: $subj"
+            } catch {
+              Write-Host 'Warning: Could not send email via Outlook.'
+              Write-Host $_.Exception.Message
+              Write-Host $_.Exception.ToString()
             }
-            if ($sendAccount -ne $null) {
-              $mail.SendUsingAccount = $sendAccount
-              Write-Host "Using Outlook account: $($sendAccount.SmtpAddress)"
-            } else {
-              Write-Host "Warning: Outlook account $senderSmtp not found in current VDI profile; using default account."
-            }
-            $mail.To = 'lokesh.jain@absa.africa'
-            $mail.CC = 'Harshal.Shindhe@absa.africa; Santosh.Swain@absa.africa;Amruta.Matre@absa.africa;Puja.Rane@absa.africa'
-            $mail.Subject = $subj
-            $mail.HTMLBody = $b
-            if ($hasReport) { $mail.Attachments.Add($zipPath) | Out-Null }
-            $mail.Send()
-            Write-Host "Email sent: $subj"
-          } catch {
-            Write-Host 'Warning: Could not send email via Outlook.'
-            Write-Host $_.Exception.Message
+          }
+
+          if (-not $emailSent) {
+            Write-Host 'Warning: No email was sent. Configure SMTP_* secrets for fallback or run runner in an interactive Outlook session.'
           }
 
       - name: Fail job if tests failed

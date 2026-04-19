@@ -1,53 +1,46 @@
-const { test, expect } = require('@playwright/test');
-const fs = require('fs');
-const path = require('path');
-const { LoginPage } = require('../pages/LoginPage');
+const { test, expect } = require('./fixtures');
 const { OtpManagementPage } = require('../pages/OtpManagementPage');
 const { testData } = require('../config/testData');
+const fs = require('fs');
+const path = require('path');
 
-test.setTimeout(120000);
-
-const RUN_FOLDER = `screenshots/run_${new Date().toISOString().slice(0, 16).replace(/[T:]/g, '-')}`;
+const SUITE_NAME = 'otp-management';
+const SUITE_FOLDER = path.join('screenshots', SUITE_NAME);
 
 function ensureRunFolder() {
-  if (!fs.existsSync(RUN_FOLDER)) fs.mkdirSync(RUN_FOLDER, { recursive: true });
+  if (!fs.existsSync(SUITE_FOLDER)) fs.mkdirSync(SUITE_FOLDER, { recursive: true });
 }
 
 async function snap(page, testInfo, name) {
+  if (process.env.PW_CAPTURE_STEPS !== '1') {
+    return;
+  }
+
   ensureRunFolder();
-  const filePath = path.join(RUN_FOLDER, `${name}.png`);
+  const filePath = path.join(SUITE_FOLDER, `${name}.png`);
   await page.screenshot({ path: filePath, fullPage: true });
   await testInfo.attach(name, { path: filePath, contentType: 'image/png' });
 }
 
-test('SC UAT OTP management test', async ({ page }, testInfo) => {
-  const loginPage = new LoginPage(page, testInfo);
+test('SC UAT OTP management test', async ({ loggedInPage: page }, testInfo) => {
   const otpManagementPage = new OtpManagementPage(page, testInfo);
 
-  await loginPage.openLoginPage();
-  await expect(loginPage.usernameInput).toBeVisible();
-  await snap(page, testInfo, 'otp_01_login_page');
-
-  await loginPage.login(testData.username, testData.password);
-  await loginPage.enterOtp(testData.otp);
-  await loginPage.clickNextButton();
-  await loginPage.waitForAtAGlance();
-  await snap(page, testInfo, 'otp_02_home_page');
+  await snap(page, testInfo, 'otp_01_home_page');
 
   await otpManagementPage.openCustomerService();
-  await snap(page, testInfo, 'otp_03_customer_service_menu');
+  await snap(page, testInfo, 'otp_02_customer_service_menu');
 
   await otpManagementPage.openOtpManagement();
-  await snap(page, testInfo, 'otp_04_otp_management_page');
+  await snap(page, testInfo, 'otp_03_otp_management_page');
 
   await otpManagementPage.selectUnselectedRadioButton();
-  await snap(page, testInfo, 'otp_05_radio_selected');
+  await snap(page, testInfo, 'otp_04_radio_selected');
 
   await otpManagementPage.clickNextButton();
   await otpManagementPage.enterOtpAndSubmit(testData.otp);
-  await snap(page, testInfo, 'otp_06_otp_submitted');
+  await snap(page, testInfo, 'otp_05_otp_submitted');
 
   await otpManagementPage.waitForSuccessScreen();
   await expect(otpManagementPage.successMessage).toBeVisible();
-  await snap(page, testInfo, 'otp_07_success');
+  await snap(page, testInfo, 'otp_06_success');
 });
