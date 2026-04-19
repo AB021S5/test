@@ -9,8 +9,8 @@ concurrency:
 
 on:
   schedule:
-    # Runs daily at 03:20 PM IST (10:50 UTC).
-    - cron: '50 10 * * *'
+    # Runs daily at 11:00 PM IST (5:30 PM UTC).
+    - cron: '30 17 * * *'
   workflow_dispatch:
 
 jobs:
@@ -295,8 +295,8 @@ jobs:
           $b += '</div>'
           $b += '<div class="ftr">This is an automated QA notification | AI Banking Platform Test Automation Suite | GitHub Actions Self-Hosted Runner | Do not reply to this email.</div>'
           $b += '</div></body></html>'
-          $subj = 'Auto Genrated mail | Playwright Automation Report | AIB-SC-UAT | ' + $dateStr + ' UTC'
-          $toRecipients = 'lokesh.jain@absa.africa'
+          $subj = 'Auto Generated Mail | Playwright Automation Report | AIB-SC-UAT | ' + $dateStr + ' UTC'
+          $toRecipients = 'Harshal.Shindhe@absa.africa;Santosh.Swain@absa.africa;Amruta.Matre@absa.africa;Puja.Rane@absa.africa;Shweta.Ghavare@absa.africa'
           $ccRecipients = 'lokesh.jain@absa.africa'
           $emailSent = $false
 
