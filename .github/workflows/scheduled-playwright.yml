@@ -9,8 +9,8 @@ concurrency:
 
 on:
   schedule:
-    # Runs daily at 11:55 AM IST (6:25 AM UTC).
-    - cron: '25 6 * * *'
+    # Runs daily at 12:45 PM IST (7:15 AM UTC).
+    - cron: '15 7 * * *'
   workflow_dispatch:
 
 jobs:
@@ -295,9 +295,16 @@ jobs:
           $b += '</div>'
           $b += '<div class="ftr">This is an automated QA notification | AI Banking Platform Test Automation Suite | GitHub Actions Self-Hosted Runner | Do not reply to this email.</div>'
           $b += '</div></body></html>'
-          $subj = 'Auto Genrated mail | Playwright Automation Report | AIB-SC-UAT | ' + $dateStr + ' UTC'
-          $toRecipients = 'lokesh.jain@absa.africa'
-          $ccRecipients = 'Harshal.Shindhe@absa.africa; Santosh.Swain@absa.africa;Amruta.Matre@absa.africa;Puja.Rane@absa.africa'
+          $templatePath = Join-Path $env:GITHUB_WORKSPACE 'email-report-preview.html'
+          if (Test-Path $templatePath) {
+            $b = Get-Content -Path $templatePath -Raw -Encoding UTF8
+            $b = $b -replace 'src="playwright-demo/assets/absa-logo.png"', ('src="' + $logoSrc + '"')
+            $b = $b -replace '(?s)<div class="note">.*?</div>', '<div class="note"><strong>Policy Notice:</strong> Report ZIP attachment is intentionally removed as per company policy. Email includes the approved summary layout and environment error statement.</div>'
+          }
+
+          $subj = 'Auto Generated Mail | Playwright Automation Report | AIB-SC-UAT | ' + $dateStr + ' UTC'
+          $toRecipients = 'Harshal.Shindhe@absa.africa;Santosh.Swain@absa.africa;Amruta.Matre@absa.africa;Puja.Rane@absa.africa;Shweta.Ghavare@absa.africa;Deepak.Sharma4@ltm.com'
+          $ccRecipients = 'lokesh.jain@absa.africa'
           $emailSent = $false
 
           Write-Host "Email diagnostics -> User: $env:USERNAME | Session: $env:SESSIONNAME | Host: $env:COMPUTERNAME"
@@ -317,7 +324,6 @@ jobs:
               $msg.Subject = $subj
               $msg.Body = $b
               $msg.IsBodyHtml = $true
-              if ($hasReport) { $msg.Attachments.Add($zipPath) | Out-Null }
 
               $smtpClient.Send($msg)
               $emailSent = $true
@@ -351,7 +357,6 @@ jobs:
               $mail.CC = $ccRecipients
               $mail.Subject = $subj
               $mail.HTMLBody = $b
-              if ($hasReport) { $mail.Attachments.Add($zipPath) | Out-Null }
               $mail.Send()
               $emailSent = $true
               Write-Host "Email sent via Outlook: $subj"
