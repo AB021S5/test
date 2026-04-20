@@ -302,6 +302,39 @@ jobs:
             $b = $b -replace '(?s)<div class="note">.*?</div>', '<div class="note"><strong>Policy Notice:</strong> Report ZIP attachment is intentionally removed as per company policy. Email includes the approved summary layout and environment error statement.</div>'
           }
 
+          $dynamicReportHtml = $b
+
+          $safeReportDir = Join-Path $env:RUNNER_TEMP 'sanitized-playwright-report'
+          $safeZipPath = Join-Path $env:RUNNER_TEMP 'sanitized-playwright-report.zip'
+          if (Test-Path $safeReportDir) { Remove-Item $safeReportDir -Recurse -Force }
+          if (Test-Path $safeZipPath) { Remove-Item $safeZipPath -Force }
+          New-Item -ItemType Directory -Path $safeReportDir | Out-Null
+          $safeScreensDir = Join-Path $safeReportDir 'screenshots'
+          New-Item -ItemType Directory -Path $safeScreensDir | Out-Null
+
+          if (Test-Path $screensDir) {
+            foreach ($suiteDir in Get-ChildItem -Path $screensDir -Directory -ErrorAction SilentlyContinue) {
+              $destSuiteDir = Join-Path $safeScreensDir $suiteDir.Name
+              New-Item -ItemType Directory -Path $destSuiteDir | Out-Null
+              $suitePngFiles = Get-ChildItem -Path $suiteDir.FullName -Filter *.png -File -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending
+              $safeIndexRows = ''
+              foreach ($img in $suitePngFiles) {
+                Copy-Item -Path $img.FullName -Destination (Join-Path $destSuiteDir $img.Name) -Force
+                $safeIndexRows += '<tr><td style="padding:8px 10px;border:1px solid #ddd;">' + $img.Name + '</td><td style="padding:8px 10px;border:1px solid #ddd;"><a href="' + $img.Name + '">Open</a></td></tr>'
+              }
+              if ([string]::IsNullOrWhiteSpace($safeIndexRows)) {
+                $safeIndexRows = '<tr><td colspan="2" style="padding:8px 10px;border:1px solid #ddd;">No screenshots found.</td></tr>'
+              }
+              $safeSuiteIndex = '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>' + $suiteDir.Name + ' Screenshots</title></head><body style="font-family:Arial,Helvetica,sans-serif;padding:16px;"><div style="margin-bottom:12px;"><a href="../../index.html" style="text-decoration:none;color:#0d3d6b;font-size:13px;">&larr; Back to report</a></div><h2 style="margin-top:0;">' + $suiteDir.Name + ' - Screenshots</h2><table style="border-collapse:collapse;width:100%;max-width:900px;"><tr><th style="text-align:left;padding:8px 10px;border:1px solid #ddd;background:#f2f5f8;">File</th><th style="text-align:left;padding:8px 10px;border:1px solid #ddd;background:#f2f5f8;">View</th></tr>' + $safeIndexRows + '</table></body></html>'
+              Set-Content -Path (Join-Path $destSuiteDir 'index.html') -Value $safeSuiteIndex -Encoding UTF8
+            }
+          }
+
+          $attachmentHtml = [regex]::Replace($dynamicReportHtml, 'href="file:///[^\"]*/screenshots/([^\"]+)"', 'href="screenshots/$1"')
+          $attachmentHtml = [regex]::Replace($attachmentHtml, '(?s)<div class="note">.*?</div>', '<div class="note"><strong>Sanitized Report Attached:</strong> This attachment contains only the summary page and screenshots. Playwright source, traces, and code-heavy artifacts are excluded for sharing compliance.</div>')
+          Set-Content -Path (Join-Path $safeReportDir 'index.html') -Value $attachmentHtml -Encoding UTF8
+          Compress-Archive -Path "$safeReportDir\*" -DestinationPath $safeZipPath -Force
+
           $subj = 'Auto Generated Mail | Playwright Automation Report | AIB-SC-UAT | ' + $dateStr + ' UTC'
           $toRecipients = 'Harshal.Shindhe@absa.africa;Santosh.Swain@absa.africa;Amruta.Matre@absa.africa;Puja.Rane@absa.africa;Shweta.Ghavare@absa.africa;Deepak.Sharma4@ltm.com'
           $ccRecipients = 'lokesh.jain@absa.africa'
@@ -324,6 +357,7 @@ jobs:
               $msg.Subject = $subj
               $msg.Body = $b
               $msg.IsBodyHtml = $true
+              if (Test-Path $safeZipPath) { $msg.Attachments.Add($safeZipPath) | Out-Null }
 
               $smtpClient.Send($msg)
               $emailSent = $true
@@ -357,6 +391,7 @@ jobs:
               $mail.CC = $ccRecipients
               $mail.Subject = $subj
               $mail.HTMLBody = $b
+              if (Test-Path $safeZipPath) { $mail.Attachments.Add($safeZipPath) | Out-Null }
               $mail.Send()
               $emailSent = $true
               Write-Host "Email sent via Outlook: $subj"
