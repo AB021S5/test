@@ -18,7 +18,9 @@ class OwnFundTransferPage {
 
     // Flow buttons and inputs with text-based fallbacks.
     this.firstNextButton = page.locator("(//a[normalize-space()='Next' or .//span[normalize-space()='Next']] | //button[normalize-space()='Next'])[1]").first();
-    this.amountInput = page.locator("//*[@id='form:j_idt98']").first();
+    this.amountInput = page.locator(
+      "(//*[@id='form:j_idt98'] | //td[normalize-space(.)='Amount']/following::input[@type='text'][1] | //label[normalize-space(.)='Amount']/following::input[1] | //td[contains(normalize-space(.),'Amount')]/following::input[@type='text'][1])[1]"
+    ).first();
     this.paymentDescriptionInput = page.locator("(//label[contains(., 'Payment Description')]/following::input[1] | //*[@id='form:j_idt169'] | //input[contains(translate(@name,'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz'),'description')])[1]").first();
     this.secondNextButton = page.locator("(//*[@id='form']/div[5]/div/table/tbody/tr/td/div[1]/a | //a[normalize-space()='Next'] | //button[normalize-space()='Next'])[1]").first();
     this.confirmButton = page.locator("(//*[@id='form:j_idt106'] | //a[normalize-space()='Confirm'] | //button[normalize-space()='Confirm'])[1]").first();
@@ -48,7 +50,7 @@ class OwnFundTransferPage {
       await this.page.waitForLoadState('domcontentloaded');
     }
 
-    await this.fromAccountSelect.waitFor({ state: 'visible', timeout: 7000 });
+    await this.fromAccountSelect.waitFor({ state: 'visible', timeout: 15000 });
   }
 
   async getSelectedOptionText(selectLocator) {
