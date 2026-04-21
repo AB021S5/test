@@ -1,0 +1,31 @@
+
+> playwright-demo@1.0.0 test
+> npm run maintenance:pre-run && playwright test
+
+
+> playwright-demo@1.0.0 maintenance:pre-run
+> node scripts/maintenance-pre-run.js
+
+Pre-run maintenance completed: artifacts cleared; screenshots retention keepRuns=1.
+node:fs:433
+    return binding.readFileUtf8(path, stringToFlags(options.flag));
+                   ^
+
+Error: UNKNOWN: unknown error, open 'C:\Users\AB021S5\OneDrive - Absa\Desktop\Playwright\playwright-demo\node_modules\@playwright\test\cli.js'
+    at Object.readFileSync (node:fs:433:20)
+    at defaultLoadImpl (node:internal/modules/cjs/loader:1128:17)
+    at loadSource (node:internal/modules/cjs/loader:1761:20)
+    at Object..js (node:internal/modules/cjs/loader:1893:44)
+    at Module.load (node:internal/modules/cjs/loader:1469:32)
+    at Module._load (node:internal/modules/cjs/loader:1286:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:322:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:235:24)
+    at Module.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:152:5)
+    at node:internal/main/run_main_module:33:47 {
+  errno: -4094,
+  code: 'UNKNOWN',
+  syscall: 'open',
+  path: 'C:\\Users\\AB021S5\\OneDrive - Absa\\Desktop\\Playwright\\playwright-demo\\node_modules\\@playwright\\test\\cli.js'
+}
+
+Node.js v24.2.0

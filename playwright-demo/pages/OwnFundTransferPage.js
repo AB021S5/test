@@ -314,7 +314,7 @@ class OwnFundTransferPage {
   }
 
   async takeScreenshot(name) {
-    if (process.env.PW_CAPTURE_STEPS !== '1') {
+    if (process.env.PW_CAPTURE_STEPS === '0') {
       return;
     }
 

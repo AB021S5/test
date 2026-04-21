@@ -69,7 +69,7 @@ class LoginPage {
   async clickLoginButton() {
     await this.loginButton.click();
     await this.page.waitForLoadState('domcontentloaded');
-    
+
     // Check for service unavailability error message
     const serviceErrorLocator = this.page.locator(
       "//*[contains(text(), 'We are unable to process your request')] | " +
@@ -133,7 +133,7 @@ class LoginPage {
   }
 
   async takeScreenshot(name) {
-    if (process.env.PW_CAPTURE_STEPS !== '1') {
+    if (process.env.PW_CAPTURE_STEPS === '0') {
       return;
     }
 

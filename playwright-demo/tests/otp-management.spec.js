@@ -12,7 +12,7 @@ function ensureRunFolder() {
 }
 
 async function snap(page, testInfo, name) {
-  if (process.env.PW_CAPTURE_STEPS !== '1') {
+  if (process.env.PW_CAPTURE_STEPS === '0') {
     return;
   }
 
