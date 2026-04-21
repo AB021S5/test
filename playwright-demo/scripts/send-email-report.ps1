@@ -175,6 +175,10 @@ function Get-TestRows {
       $baseUrl = $PublicScreensBaseUrl.TrimEnd('/')
       $suiteScreensHref = $baseUrl + '/' + $SuiteName + '/index.html'
       $folderLink = '<a href="' + $suiteScreensHref + '" title="' + $suiteScreensDir + '" style="text-decoration:none;font-size:16px;">&#128193;</a>'
+    } else {
+      $linkPath = if (Test-Path $suiteIndexPath) { $suiteIndexPath } else { $suiteScreensDir }
+      $suiteScreensHref = ([System.Uri]([System.IO.Path]::GetFullPath($linkPath))).AbsoluteUri
+      $folderLink = '<a href="' + $suiteScreensHref + '" title="' + $suiteScreensDir + '" style="text-decoration:none;font-size:16px;">&#128193;</a>'
     }
   }
 
