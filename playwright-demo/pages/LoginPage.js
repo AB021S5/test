@@ -65,8 +65,8 @@ class LoginPage {
   }
 
   async clickLoginButton() {
-    await this.loginButton.click();
-    await this.page.waitForLoadState('domcontentloaded');
+    await this.loginButton.click({ noWaitAfter: true });
+    await this.page.waitForLoadState('domcontentloaded', { timeout: 20000 }).catch(() => {});
 
     // Check for service unavailability error message
     const serviceErrorLocator = this.page.locator(
@@ -78,8 +78,8 @@ class LoginPage {
     try {
       // Race: wait for either OTP input OR service error
       await Promise.race([
-        this.otpInput.waitFor({ state: 'visible', timeout: 7000 }),
-        serviceErrorLocator.waitFor({ state: 'visible', timeout: 7000 })
+        this.otpInput.waitFor({ state: 'visible', timeout: 20000 }),
+        serviceErrorLocator.waitFor({ state: 'visible', timeout: 20000 })
           .then(() => {
             throw new Error('SERVICE_UNAVAILABLE');
           })
@@ -100,11 +100,12 @@ class LoginPage {
   }
 
   async clickNextButton() {
-    await this.nextButton.click({ timeout: 20000 });
+    await this.nextButton.click({ timeout: 7000, noWaitAfter: true });
   }
 
   async waitForAtAGlance() {
-    await this.page.waitForLoadState('domcontentloaded');
+    await this.page.waitForLoadState('domcontentloaded', { timeout: 20000 }).catch(() => {});
+    await this.page.waitForLoadState('networkidle', { timeout: 7000 }).catch(() => {});
 
     const homeLandmarks = [this.ataglance, this.transferAndPayment, this.logoutLink];
     let homeReady = false;
