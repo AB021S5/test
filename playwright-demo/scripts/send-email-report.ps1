@@ -51,7 +51,18 @@ function New-SuiteScreenshotIndexes {
     $destSuiteDir = Join-Path $DestinationScreensDir $suiteDir.Name
     New-Item -ItemType Directory -Path $destSuiteDir -Force | Out-Null
 
-    $suitePngFiles = Get-ChildItem -Path $suiteDir.FullName -Filter *.png -File -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending
+    $allSuitePngFiles = Get-ChildItem -Path $suiteDir.FullName -Filter *.png -File -ErrorAction SilentlyContinue | Sort-Object LastWriteTime
+    $importantPattern = 'from_account|to_account|payment_details|submitted|account_details|otp_radio|otp_management_success|service_unavailable|environment_health_ok'
+    $seenSteps = @{}
+    $suitePngFiles = @()
+    foreach ($img in $allSuitePngFiles) {
+      $stepKey = Get-StepKey -FileName $img.Name
+      if ($stepKey -notmatch $importantPattern) { continue }
+      if ($seenSteps.ContainsKey($stepKey)) { continue }
+      $seenSteps[$stepKey] = $true
+      $suitePngFiles += $img
+    }
+
     $safeIndexRows = ''
     foreach ($img in $suitePngFiles) {
       Copy-Item -Path $img.FullName -Destination (Join-Path $destSuiteDir $img.Name) -Force
@@ -80,6 +91,53 @@ function New-SuiteScreenshotIndexes {
 
   $rootSafeIndex = '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Playwright Screenshots</title></head><body style="font-family:Arial,Helvetica,sans-serif;padding:16px;"><div style="margin-bottom:12px;"><a href="../index.html" style="text-decoration:none;color:#0d3d6b;font-size:13px;">&larr; Back to report</a></div><h2 style="margin-top:0;">Playwright Screenshot Suites</h2><table style="border-collapse:collapse;width:100%;max-width:820px;"><tr><th style="text-align:left;padding:8px 10px;border:1px solid #ddd;background:#f2f5f8;">Suite</th><th style="text-align:left;padding:8px 10px;border:1px solid #ddd;background:#f2f5f8;">Images</th><th style="text-align:left;padding:8px 10px;border:1px solid #ddd;background:#f2f5f8;">Open</th></tr>' + ($suiteLinks -join '') + '</table></body></html>'
   Set-Content -Path (Join-Path $DestinationScreensDir 'index.html') -Value $rootSafeIndex -Encoding UTF8
+}
+
+function Get-StepKey {
+  param([string]$FileName)
+
+  if ([string]::IsNullOrWhiteSpace($FileName)) { return '' }
+
+  $name = [System.IO.Path]::GetFileNameWithoutExtension($FileName)
+  $name = [regex]::Replace($name, '[-_][0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9-]+Z$', '', 'IgnoreCase')
+  $name = [regex]::Replace($name, '-[a-f0-9]{32,40}$', '', 'IgnoreCase')
+  return $name
+}
+
+function Get-ImportantScreenshotGalleryHtml {
+  param([string]$ScreensRoot)
+
+  if (-not (Test-Path $ScreensRoot)) {
+    return '<table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation"><tr><td style="font-size:12px;color:#666;font-family:Arial,Helvetica,sans-serif;">No screenshots were generated for this run.</td></tr></table>'
+  }
+
+  $importantPattern = 'from_account|to_account|payment_details|submitted|account_details|otp_radio|otp_management_success|service_unavailable|environment_health_ok'
+  $html = '<table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation" style="border-collapse:collapse;font-family:Arial,Helvetica,sans-serif;"><tr><td style="font-size:14px;font-weight:bold;color:#0d3d6b;padding-bottom:8px;">Important Step Screenshots</td></tr></table>'
+
+  foreach ($suiteDir in Get-ChildItem -Path $ScreensRoot -Directory -ErrorAction SilentlyContinue | Sort-Object Name) {
+    $suiteId = ($suiteDir.Name -replace '[^a-zA-Z0-9_-]', '-')
+    $seen = @{}
+    $images = @()
+
+    foreach ($img in (Get-ChildItem -Path $suiteDir.FullName -Filter *.png -File -ErrorAction SilentlyContinue | Sort-Object LastWriteTime)) {
+      $stepKey = Get-StepKey -FileName $img.Name
+      if ($stepKey -notmatch $importantPattern) { continue }
+      if ($seen.ContainsKey($stepKey)) { continue }
+      $seen[$stepKey] = $true
+      $images += $img
+    }
+
+    if ($images.Count -eq 0) { continue }
+
+    $html += '<table id="shots-' + $suiteId + '" width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation" style="border-collapse:collapse;font-family:Arial,Helvetica,sans-serif;margin-top:10px;"><tr><td style="font-size:12px;font-weight:bold;color:#1b3f6b;padding:6px 0;">' + $suiteDir.Name + '</td></tr></table>'
+    foreach ($img in $images) {
+      $bytes = [System.IO.File]::ReadAllBytes($img.FullName)
+      $b64 = [System.Convert]::ToBase64String($bytes)
+      $html += '<table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation" style="border-collapse:collapse;font-family:Arial,Helvetica,sans-serif;"><tr><td style="padding:4px 0 10px 0;"><div style="font-size:11px;color:#555;padding-bottom:4px;">' + $img.Name + '</div><img src="data:image/png;base64,' + $b64 + '" alt="' + $img.Name + '" style="max-width:100%;height:auto;border:1px solid #d9dee5;" /></td></tr></table>'
+    }
+  }
+
+  return $html
 }
 
 function To-FeatureName {
@@ -116,10 +174,8 @@ function Get-TestRows {
     if (-not [string]::IsNullOrWhiteSpace($PublicScreensBaseUrl)) {
       $baseUrl = $PublicScreensBaseUrl.TrimEnd('/')
       $suiteScreensHref = $baseUrl + '/' + $SuiteName + '/index.html'
-    } else {
-      $suiteScreensHref = ([System.Uri]([System.IO.Path]::GetFullPath($suiteIndexPath))).AbsoluteUri
+      $folderLink = '<a href="' + $suiteScreensHref + '" title="' + $suiteScreensDir + '" style="text-decoration:none;font-size:16px;">&#128193;</a>'
     }
-    $folderLink = '<a href="' + $suiteScreensHref + '" title="' + $suiteScreensDir + '" style="text-decoration:none;font-size:16px;">&#128193;</a>'
   }
 
   foreach ($spec in $Suite.specs) {
@@ -343,6 +399,7 @@ $bodyHtml = [regex]::Replace($bodyHtml, '(<td class="bp" width=")[^"]*(")', ('${
 $bodyHtml = [regex]::Replace($bodyHtml, '(<td class="bf" width=")[^"]*(")', ('${1}' + $fRate + '%${2}'))
 $bodyHtml = [regex]::Replace($bodyHtml, '(<td class="bs" width=")[^"]*(")', ('${1}' + $sRate + '%${2}'))
 $bodyHtml = $bodyHtml.Replace('<!--ROWS_PLACEHOLDER-->', $rows)
+$bodyHtml = $bodyHtml.Replace('<!--SCREENSHOT_GALLERY_PLACEHOLDER-->', '')
 
 if ($envDown) {
   $alertHtml = '<!--ALERT_BLOCK_START--><table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation" style="border-collapse:collapse;font-family:Arial,Helvetica,sans-serif;"><tr><td width="4" bgcolor="#c62828" style="background:#c62828;font-size:1px;line-height:1px;">&nbsp;</td><td bgcolor="#ead0d0" style="background:#ead0d0;padding:12px 16px;font-size:12px;color:#2d3136;font-family:Arial,Helvetica,sans-serif;line-height:18px;mso-line-height-rule:exactly;"><strong>&#9888; ENVIRONMENT ALERT - SERVICE UNAVAILABLE</strong><br><br><strong>&#128680; SC UAT Environment is DOWN/UNAVAILABLE</strong><br><br><strong>Service Error Message:</strong><br><em>"' + $outageMessage + '"</em><br><br><strong>&#9432; Status:</strong> All test cases are shown as failed because backend service was unavailable during login.<br><br><strong>&#9881; Action Required:</strong> Engage environment support and rerun once service is restored.</td></tr></table><!--ALERT_BLOCK_END-->'
