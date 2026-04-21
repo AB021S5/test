@@ -17,7 +17,7 @@ class LoginPage {
   }
   
   async openLoginPage() {
-    await this.page.goto('/', { waitUntil: 'domcontentloaded' });
+    await this.page.goto('/air', { waitUntil: 'domcontentloaded' });
 
     const outageBanner = this.page.locator("//*[contains(normalize-space(), 'Temporary Out Of Service') or contains(normalize-space(), 'DB00003')]").first();
     const sessionExpiredBanner = this.page.locator("//*[contains(normalize-space(), 'session has been expired')]").first();
@@ -38,7 +38,7 @@ class LoginPage {
       await this.usernameInput.waitFor({ state: 'visible', timeout: 7000 });
     } catch (error) {
       // One retry helps when the login page loads slowly or redirects.
-      await this.page.goto('/', { waitUntil: 'domcontentloaded' });
+      await this.page.goto('/air', { waitUntil: 'domcontentloaded' });
       await this.page.waitForLoadState('networkidle').catch(() => {});
 
       if (await outageBanner.isVisible().catch(() => false)) {
