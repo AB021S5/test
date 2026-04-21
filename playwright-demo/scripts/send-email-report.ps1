@@ -357,6 +357,8 @@ $bodyHtml = [regex]::Replace($bodyHtml, '(?s)<!--NOTE_BLOCK_START-->.*?<!--NOTE_
 
 $safeReportDir = Join-Path $TempRoot 'sanitized-playwright-report'
 $safeZipPath = Join-Path $TempRoot 'sanitized-playwright-report.zip'
+$safeReportDir = [System.IO.Path]::GetFullPath($safeReportDir)
+$safeZipPath = [System.IO.Path]::GetFullPath($safeZipPath)
 
 if (Test-Path $safeReportDir) { Remove-Item $safeReportDir -Recurse -Force }
 if (Test-Path $safeZipPath) { Remove-Item $safeZipPath -Force }
