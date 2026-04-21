@@ -11,9 +11,10 @@ class LoginPage {
     this.loginButton = page.locator("//a[contains(., 'Log in')]");
     this.otpInput = page.locator("//td[contains(., 'One Time Password')]/following::input[1] | //td[contains(., 'One Time Password')]/following::textarea[1]");
     this.nextButton = page.locator("//a[contains(., 'Next')]");
-    this.ataglance = page.locator("(//a[contains(normalize-space(),'At a Glance')] | //span[contains(normalize-space(),'At a Glance')])[1]");
-    this.transferAndPayment = page.locator("(//a[contains(normalize-space(),'Transfer & Payment')])[1]");
-    this.logoutLink = page.locator("(//a[contains(normalize-space(),'Log out')])[1]");
+    this.ataglance = page.locator("(//a[contains(translate(normalize-space(.),'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz'),'at a glance')] | //span[contains(translate(normalize-space(.),'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz'),'at a glance')])[1]");
+    this.transferAndPayment = page.locator("(//a[contains(translate(normalize-space(.),'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz'),'transfer') and contains(translate(normalize-space(.),'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz'),'payment')])[1]");
+    this.logoutLink = page.locator("(//a[contains(translate(normalize-space(.),'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz'),'log out') or contains(translate(normalize-space(.),'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz'),'logout')])[1]");
+    this.topMenu = page.locator("//*[@id='top_menu']").first();
   }
   
   async openLoginPage() {
@@ -107,7 +108,7 @@ class LoginPage {
     await this.page.waitForLoadState('domcontentloaded', { timeout: 20000 }).catch(() => {});
     await this.page.waitForLoadState('networkidle', { timeout: 7000 }).catch(() => {});
 
-    const homeLandmarks = [this.ataglance, this.transferAndPayment, this.logoutLink];
+    const homeLandmarks = [this.ataglance, this.transferAndPayment, this.logoutLink, this.topMenu];
     let homeReady = false;
 
     for (const landmark of homeLandmarks) {
@@ -117,6 +118,18 @@ class LoginPage {
         break;
       } catch (error) {
         // Try next landmark.
+      }
+    }
+
+    if (!homeReady) {
+      const url = this.page.url();
+      const stillOnLoginFlow = /loginprocess|execution=/i.test(url);
+      const loginFieldsVisible =
+        (await this.usernameInput.isVisible().catch(() => false)) ||
+        (await this.otpInput.isVisible().catch(() => false));
+
+      if (!stillOnLoginFlow && !loginFieldsVisible) {
+        homeReady = true;
       }
     }
 
