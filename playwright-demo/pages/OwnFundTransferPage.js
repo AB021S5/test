@@ -67,6 +67,15 @@ class OwnFundTransferPage {
     });
   }
 
+  async getAllOptions(selectLocator) {
+    return await selectLocator.evaluate((select) =>
+      Array.from(select.options || []).map((option) => ({
+        value: String(option.value || '').trim(),
+        text: String(option.textContent || '').replace(/\s+/g, ' ').trim(),
+      }))
+    );
+  }
+
   hasPositiveBalance(accountText) {
     // Extract balance from account text. Patterns: "ACC - 1234.56" (positive), "ACC - (-1234.56)" or "ACC (-1234.56)" (negative)
     const text = String(accountText || '').trim();
@@ -87,99 +96,67 @@ class OwnFundTransferPage {
   }
 
   async getAccountOptions(selectLocator, wantedType, excludeTexts = [], isFromAccount = false, excludeValues = []) {
-    return await selectLocator.evaluate(
-      (select, type, excluded, checkBalance, excludedValues) => {
-        const hasPositiveBalance = (accountText) => {
-          const text = String(accountText || '').trim();
-          // Pattern: "... - (negative)" or "... (-negative)" or "... - -number"
-          const negativeMatch = text.match(/[-\s]\([-\d.,]+\)|[-\s]-\d+[.,]\d+/);
-          if (negativeMatch) {
-            return false;
-          }
-          if (/[-\s]\([-]|[-\s]-[\d]/.test(text)) {
-            return false;
-          }
-          return true;
-        };
+    const norm = (s) => String(s || '').toLowerCase().replace(/\s+/g, ' ').trim();
+    const acctNum = (s) => {
+      const match = norm(s).match(/^(\S+)/);
+      return match ? match[1] : norm(s);
+    };
+    const isLocal = (text) => /\bscr\b|local/i.test(text);
+    const excludedNorm = new Set((excludeTexts || []).map(norm));
+    const excludedAcct = new Set((excludeTexts || []).map(acctNum));
+    const excludedValueSet = new Set((excludeValues || []).map((item) => String(item || '').trim()));
+    const matchesType = (text) => {
+      if (wantedType === 'local') {
+        return isLocal(text);
+      }
 
-        const options = Array.from(select.options || []);
-        const isLocal = (text) => /\bscr\b|local/i.test(text);
-        const excludedSet = new Set((excluded || []).map((item) => item.trim()));
-        const excludedValueSet = new Set((excludedValues || []).map((item) => String(item || '').trim()));
-        const matchesType = (text) => {
-          if (type === 'local') {
-            return isLocal(text);
-          }
+      return !isLocal(text);
+    };
 
-          return !isLocal(text);
-        };
-        const mapped = [];
+    const options = await this.getAllOptions(selectLocator);
+    const filteredByType = options.filter((option) => {
+      if (!option.text || !option.value || /please\s*select/i.test(option.text)) {
+        return false;
+      }
 
-        for (const option of options) {
-          const text = (option.textContent || '').trim();
-          const value = option.value;
+      if (excludedValueSet.has(String(option.value).trim())) {
+        return false;
+      }
 
-          if (!text || /please\s*select/i.test(text)) {
-            continue;
-          }
+      if (excludedNorm.has(norm(option.text)) || excludedAcct.has(acctNum(option.text))) {
+        return false;
+      }
 
-          if (!value) {
-            continue;
-          }
+      if (isFromAccount && !this.hasPositiveBalance(option.text)) {
+        return false;
+      }
 
-          if (excludedValueSet.has(String(value).trim())) {
-            continue;
-          }
+      return matchesType(option.text);
+    });
 
-          if (excludedSet.has(text)) {
-            continue;
-          }
+    if (filteredByType.length > 0) {
+      return filteredByType;
+    }
 
-          // For FROM accounts, filter to only positive balance accounts
-          if (checkBalance && !hasPositiveBalance(text)) {
-            continue;
-          }
+    return options.filter((option) => {
+      if (!option.text || !option.value || /please\s*select/i.test(option.text)) {
+        return false;
+      }
 
-          if (matchesType(text)) {
-            mapped.push({ value, text });
-          }
-        }
+      if (excludedValueSet.has(String(option.value).trim())) {
+        return false;
+      }
 
-        if (mapped.length > 0) {
-          return mapped;
-        }
+      if (excludedNorm.has(norm(option.text)) || excludedAcct.has(acctNum(option.text))) {
+        return false;
+      }
 
-        for (const option of options) {
-          const text = (option.textContent || '').trim();
-          const value = option.value;
+      if (isFromAccount && !this.hasPositiveBalance(option.text)) {
+        return false;
+      }
 
-          if (!text || !value || /please\s*select/i.test(text)) {
-            continue;
-          }
-
-          if (excludedValueSet.has(String(value).trim())) {
-            continue;
-          }
-
-          if (excludedSet.has(text)) {
-            continue;
-          }
-
-          // Even in fallback, filter FROM accounts for positive balance
-          if (checkBalance && !hasPositiveBalance(text)) {
-            continue;
-          }
-
-          mapped.push({ value, text });
-        }
-
-        return mapped;
-      },
-      wantedType,
-      excludeTexts,
-      isFromAccount,
-      excludeValues
-    );
+      return true;
+    });
   }
 
   getAccountType(type) {
@@ -189,7 +166,9 @@ class OwnFundTransferPage {
   async selectFromAccountOption(option, wantedType) {
     await this.fromAccountSelect.waitFor({ state: 'visible', timeout: 7000 });
     await this.fromAccountSelect.selectOption(option.value);
-    await this.page.waitForLoadState('domcontentloaded').catch(() => {});
+    // Wait for JSF AJAX to complete (networkidle lets partial updates finish).
+    await this.page.waitForLoadState('networkidle').catch(() => {});
+    // Use original option value; re-reading from DOM after AJAX can shift values.
     this.selectedFromAccountValue = option.value;
     this.selectedFromAccountText = await this.getSelectedOptionText(this.fromAccountSelect);
     await this.takeScreenshot(`01_from_account_${wantedType}_selected`);
@@ -199,12 +178,16 @@ class OwnFundTransferPage {
     await this.toAccountSelect.waitFor({ state: 'visible', timeout: 7000 });
     await this.toAccountSelect.selectOption(option.value);
 
+    // Guard: compare by both value and normalized account number to catch same-account across differing IDs.
+    const norm = (s) => String(s || '').toLowerCase().replace(/\s+/g, ' ').trim();
+    const acctNum = (s) => { const m = norm(s).match(/^(\S+)/); return m ? m[1] : norm(s); };
+    const selectedToText = await this.getSelectedOptionText(this.toAccountSelect);
     const selectedToValue = await this.getSelectedOptionValue(this.toAccountSelect);
-    if (
-      selectedToValue &&
-      this.selectedFromAccountValue &&
-      String(selectedToValue).trim() === String(this.selectedFromAccountValue).trim()
-    ) {
+    const sameByValue = selectedToValue && this.selectedFromAccountValue &&
+      String(selectedToValue).trim() === String(this.selectedFromAccountValue).trim();
+    const sameByAcct = acctNum(selectedToText) && acctNum(this.selectedFromAccountText) &&
+      acctNum(selectedToText) === acctNum(this.selectedFromAccountText);
+    if (sameByValue || sameByAcct) {
       throw new Error('From and To account resolved to the same account after selection.');
     }
 
@@ -215,6 +198,11 @@ class OwnFundTransferPage {
     await this.firstNextButton.waitFor({ state: 'visible', timeout: 7000 });
     await this.firstNextButton.click();
     await this.page.waitForLoadState('domcontentloaded').catch(() => {});
+    // Detect same-account validation error immediately.
+    const alertMsg = this.page.locator("//*[contains(normalize-space(.),'From') and contains(normalize-space(.),'To') and contains(normalize-space(.),'same')]").first();
+    if (await alertMsg.isVisible().catch(() => false)) {
+      throw new Error('SAME_ACCOUNT_ERROR: From and To account are the same after Next click.');
+    }
     await this.amountInput.waitFor({ state: 'visible', timeout: 15000 });
   }
 
@@ -268,7 +256,6 @@ class OwnFundTransferPage {
         false,
         [this.selectedFromAccountValue]
       );
-
       for (const toOption of toOptions) {
         try {
           await this.selectToAccountOption(toOption, toType);
