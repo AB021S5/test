@@ -187,6 +187,7 @@ class OwnFundTransferPage {
   async selectFromAccountOption(option, wantedType) {
     await this.fromAccountSelect.waitFor({ state: 'visible', timeout: 7000 });
     await this.fromAccountSelect.selectOption(option.value);
+    await this.page.waitForLoadState('domcontentloaded').catch(() => {});
     this.selectedFromAccountValue = option.value;
     this.selectedFromAccountText = await this.getSelectedOptionText(this.fromAccountSelect);
     await this.takeScreenshot(`01_from_account_${wantedType}_selected`);
@@ -211,6 +212,7 @@ class OwnFundTransferPage {
   async clickFirstNext() {
     await this.firstNextButton.waitFor({ state: 'visible', timeout: 7000 });
     await this.firstNextButton.click();
+    await this.page.waitForLoadState('domcontentloaded').catch(() => {});
     await this.amountInput.waitFor({ state: 'visible', timeout: 15000 });
   }
 

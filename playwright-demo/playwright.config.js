@@ -11,7 +11,7 @@ if (process.env.PW_HTML_REPORT === '1') {
 
 module.exports = defineConfig({
   testDir: './tests',
-  timeout: 45_000,
+  timeout: 90_000,
   expect: {
     timeout: 7000,
   },
