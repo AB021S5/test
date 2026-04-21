@@ -35,10 +35,10 @@ class LoginPage {
     }
 
     try {
-      await this.usernameInput.waitFor({ state: 'visible', timeout: 45000 });
+      await this.usernameInput.waitFor({ state: 'visible', timeout: 7000 });
     } catch (error) {
       // One retry helps when the login page loads slowly or redirects.
-      await this.page.reload({ waitUntil: 'domcontentloaded' });
+      await this.page.goto('/', { waitUntil: 'domcontentloaded' });
       await this.page.waitForLoadState('networkidle').catch(() => {});
 
       if (await outageBanner.isVisible().catch(() => false)) {
@@ -52,18 +52,16 @@ class LoginPage {
         }
       }
 
-      await this.usernameInput.waitFor({ state: 'visible', timeout: 45000 });
+      await this.usernameInput.waitFor({ state: 'visible', timeout: 7000 });
     }
   }
 
   async enterUsername(username) {
     await this.usernameInput.fill(username);
-    await this.takeScreenshot('01_username_entered');
   }
 
   async enterPassword(password) {
     await this.passwordInput.fill(password);
-    await this.takeScreenshot('02_password_entered');
   }
 
   async clickLoginButton() {
@@ -80,8 +78,8 @@ class LoginPage {
     try {
       // Race: wait for either OTP input OR service error
       await Promise.race([
-        this.otpInput.waitFor({ state: 'visible', timeout: 30000 }),
-        serviceErrorLocator.waitFor({ state: 'visible', timeout: 5000 })
+        this.otpInput.waitFor({ state: 'visible', timeout: 7000 }),
+        serviceErrorLocator.waitFor({ state: 'visible', timeout: 7000 })
           .then(() => {
             throw new Error('SERVICE_UNAVAILABLE');
           })
@@ -94,19 +92,15 @@ class LoginPage {
       throw error;
     }
     
-    await this.takeScreenshot('03_after_login_button');
   }
 
   async enterOtp(otp) {
-    await this.otpInput.waitFor({ state: 'visible', timeout: 30000 });
+    await this.otpInput.waitFor({ state: 'visible', timeout: 7000 });
     await this.otpInput.fill(otp);
-    await this.takeScreenshot('04_otp_entered');
   }
 
   async clickNextButton() {
-    await this.nextButton.click();
-    await this.page.waitForLoadState('domcontentloaded');
-    await this.takeScreenshot('05_after_next_button');
+    await this.nextButton.click({ timeout: 20000 });
   }
 
   async waitForAtAGlance() {
@@ -117,7 +111,7 @@ class LoginPage {
 
     for (const landmark of homeLandmarks) {
       try {
-        await landmark.waitFor({ state: 'visible', timeout: 20000 });
+        await landmark.waitFor({ state: 'visible', timeout: 7000 });
         homeReady = true;
         break;
       } catch (error) {
@@ -129,7 +123,6 @@ class LoginPage {
       throw new Error('Login succeeded but home page landmarks were not visible.');
     }
 
-    await this.takeScreenshot('06_at_a_glance_screen');
   }
 
   async takeScreenshot(name) {

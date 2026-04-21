@@ -19,6 +19,8 @@ for (const relativePath of pathsToRemove) {
   fs.rmSync(fullPath, { recursive: true, force: true });
 }
 
+// Recreate test-results so the JSON reporter can always write results.json.
+fs.mkdirSync(path.join(projectRoot, 'test-results'), { recursive: true });
 fs.mkdirSync(screenshotsDir, { recursive: true });
 
 if (keepRuns === 0) {

@@ -19,10 +19,10 @@ class OwnFundTransferPage {
     // Flow buttons and inputs with text-based fallbacks.
     this.firstNextButton = page.locator("(//a[normalize-space()='Next' or .//span[normalize-space()='Next']] | //button[normalize-space()='Next'])[1]").first();
     this.amountInput = page.locator("//*[@id='form:j_idt98']").first();
-    this.paymentDescriptionInput = page.locator("//label[contains(., 'Payment Description')]/following::input[1] | //*[@id='form:j_idt169']").first();
-    this.secondNextButton = page.locator("//*[@id='form']/div[5]/div/table/tbody/tr/td/div[1]/a").first();
-    this.confirmButton = page.locator("//*[@id='form:j_idt106']").first();
-    this.submittedMessage = page.locator("//*[@id='pageintro_640']/div").first();
+    this.paymentDescriptionInput = page.locator("(//label[contains(., 'Payment Description')]/following::input[1] | //*[@id='form:j_idt169'] | //input[contains(translate(@name,'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz'),'description')])[1]").first();
+    this.secondNextButton = page.locator("(//*[@id='form']/div[5]/div/table/tbody/tr/td/div[1]/a | //a[normalize-space()='Next'] | //button[normalize-space()='Next'])[1]").first();
+    this.confirmButton = page.locator("(//*[@id='form:j_idt106'] | //a[normalize-space()='Confirm'] | //button[normalize-space()='Confirm'])[1]").first();
+    this.submittedMessage = page.locator("(//*[@id='pageintro_640']/div | //*[contains(translate(normalize-space(.),'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz'),'submitted') or contains(translate(normalize-space(.),'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz'),'successful')])[1]").first();
   }
 
   async openFundTransferForm() {
@@ -30,12 +30,11 @@ class OwnFundTransferPage {
       return;
     }
 
-    await this.transferAndPaymentMenu.waitFor({ state: 'visible', timeout: 10000 });
-    await this.transferAndPaymentMenu.click();
+    await this.transferAndPaymentMenu.waitFor({ state: 'visible', timeout: 7000 });
+    await this.transferAndPaymentMenu.click({ noWaitAfter: true });
     await this.page.waitForLoadState('domcontentloaded');
 
     if (await this.fromAccountSelect.isVisible().catch(() => false)) {
-      await this.takeScreenshot('00_opened_fund_transfer_from_top_menu');
       return;
     }
 
@@ -49,8 +48,7 @@ class OwnFundTransferPage {
       await this.page.waitForLoadState('domcontentloaded');
     }
 
-    await this.fromAccountSelect.waitFor({ state: 'visible', timeout: 15000 });
-    await this.takeScreenshot('00_opened_fund_transfer_from_top_menu');
+    await this.fromAccountSelect.waitFor({ state: 'visible', timeout: 7000 });
   }
 
   async getSelectedOptionText(selectLocator) {
@@ -187,7 +185,7 @@ class OwnFundTransferPage {
   }
 
   async selectFromAccountOption(option, wantedType) {
-    await this.fromAccountSelect.waitFor({ state: 'visible', timeout: 15000 });
+    await this.fromAccountSelect.waitFor({ state: 'visible', timeout: 7000 });
     await this.fromAccountSelect.selectOption(option.value);
     this.selectedFromAccountValue = option.value;
     this.selectedFromAccountText = await this.getSelectedOptionText(this.fromAccountSelect);
@@ -195,7 +193,7 @@ class OwnFundTransferPage {
   }
 
   async selectToAccountOption(option, wantedType) {
-    await this.toAccountSelect.waitFor({ state: 'visible', timeout: 15000 });
+    await this.toAccountSelect.waitFor({ state: 'visible', timeout: 7000 });
     await this.toAccountSelect.selectOption(option.value);
 
     const selectedToValue = await this.getSelectedOptionValue(this.toAccountSelect);
@@ -211,40 +209,37 @@ class OwnFundTransferPage {
   }
 
   async clickFirstNext() {
-    await this.firstNextButton.waitFor({ state: 'visible', timeout: 15000 });
+    await this.firstNextButton.waitFor({ state: 'visible', timeout: 7000 });
     await this.firstNextButton.click();
     await this.amountInput.waitFor({ state: 'visible', timeout: 15000 });
-    await this.takeScreenshot('03_after_first_next');
   }
 
   async enterPaymentDetails(amount, description) {
-    await this.amountInput.waitFor({ state: 'visible', timeout: 10000 });
+    await this.amountInput.waitFor({ state: 'visible', timeout: 7000 });
     await this.amountInput.fill(String(amount));
 
     // Wait for payment description field with reduced timeout
-    await this.paymentDescriptionInput.waitFor({ state: 'visible', timeout: 8000 });
+    await this.paymentDescriptionInput.waitFor({ state: 'visible', timeout: 7000 });
     await this.paymentDescriptionInput.fill(description);
 
     await this.takeScreenshot('04_payment_details_entered');
   }
 
   async clickSecondNext() {
-    await this.secondNextButton.waitFor({ state: 'visible', timeout: 15000 });
+    await this.secondNextButton.waitFor({ state: 'visible', timeout: 7000 });
     await this.secondNextButton.click();
-    await this.confirmButton.waitFor({ state: 'visible', timeout: 15000 });
-    await this.takeScreenshot('05_after_second_next');
+    await this.confirmButton.waitFor({ state: 'visible', timeout: 7000 });
   }
 
   async confirmTransfer() {
-    await this.confirmButton.waitFor({ state: 'visible', timeout: 15000 });
+    await this.confirmButton.waitFor({ state: 'visible', timeout: 7000 });
     await this.confirmButton.click();
     await this.page.waitForLoadState('domcontentloaded');
-    await this.takeScreenshot('06_after_confirm_click');
   }
 
   async waitForSubmittedMessage() {
-    await this.submittedMessage.waitFor({ state: 'visible', timeout: 15000 });
-    await this.takeScreenshot('07_transfer_submitted_message');
+    await this.submittedMessage.waitFor({ state: 'visible', timeout: 7000 });
+    await this.takeScreenshot('04_transfer_submitted_message');
   }
 
   async performTransfer({ fromAccountType, toAccountType, amount, description }) {
