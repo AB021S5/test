@@ -2,6 +2,8 @@ name: Scheduled Playwright Run
 
 permissions:
   contents: read
+  pages: write
+  id-token: write
 
 concurrency:
   group: scheduled-playwright-oft
@@ -116,12 +118,41 @@ jobs:
             playwright-demo/test-results
           if-no-files-found: ignore
 
+      - name: Prepare screenshots for GitHub Pages
+        if: always()
+        shell: powershell
+        run: |
+          $pagesDir = Join-Path $env:RUNNER_TEMP 'gh-pages'
+          New-Item -ItemType Directory -Path $pagesDir -Force | Out-Null
+          $screensDir = 'screenshots'
+          if (Test-Path $screensDir) {
+            Copy-Item $screensDir -Destination (Join-Path $pagesDir 'screenshots') -Recurse -Force
+          }
+          $rootIndex = '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Playwright Screenshots</title></head><body style="font-family:Arial,Helvetica,sans-serif;padding:24px;"><h2>Playwright Test Screenshots</h2><p><a href="screenshots/">Browse screenshots</a></p></body></html>'
+          Set-Content -Path (Join-Path $pagesDir 'index.html') -Value $rootIndex -Encoding UTF8
+          Write-Host "Pages artifact prepared at: $pagesDir"
+
+      - name: Upload Pages artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: github-pages
+          path: ${{ runner.temp }}/gh-pages
+          retention-days: 1
+
+      - name: Deploy to GitHub Pages
+        id: deploy_pages
+        if: always()
+        uses: actions/deploy-pages@v4
+
       - name: Send test report email
         if: always()
         shell: powershell
         working-directory: ${{ github.workspace }}
         run: |
-          & "$env:GITHUB_WORKSPACE\playwright-demo\scripts\send-email-report.ps1" -WorkspaceRoot $env:GITHUB_WORKSPACE
+          & "$env:GITHUB_WORKSPACE\playwright-demo\scripts\send-email-report.ps1" `
+            -WorkspaceRoot $env:GITHUB_WORKSPACE `
+            -PublicScreensBaseUrl 'https://AB021S5.github.io/test/screenshots'
 
       - name: Fail job if tests failed
         if: steps.run_tests.outcome == 'failure'
