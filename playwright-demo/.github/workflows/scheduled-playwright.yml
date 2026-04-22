@@ -156,13 +156,25 @@ jobs:
           Set-Content -Path (Join-Path $pagesDir 'index.html') -Value $rootIndex -Encoding UTF8
           Write-Host "Pages artifact prepared at: $pagesDir"
 
+      - name: Ensure Git Bash is available
+        if: always()
+        shell: powershell
+        run: |
+          $bashDirs = @(
+            'C:\Program Files\Git\bin',
+            'C:\Program Files\Git\usr\bin'
+          )
+          foreach ($dir in $bashDirs) {
+            if (Test-Path (Join-Path $dir 'bash.exe')) {
+              $dir | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+            }
+          }
+
       - name: Upload Pages artifact
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-pages-artifact@v3
         with:
-          name: github-pages
           path: ${{ runner.temp }}/gh-pages
-          retention-days: 1
 
       - name: Deploy to GitHub Pages
         id: deploy_pages
