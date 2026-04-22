@@ -137,14 +137,18 @@ jobs:
                 if ($relative) {
                   New-Item -ItemType Directory -Path (Join-Path $destScreens $relative) -Force | Out-Null
                 }
-              } elseif (($_.Attributes -band [IO.FileAttributes]::ReparsePoint) -eq 0) {
+              } else {
                 $relative = $_.FullName.Substring((Resolve-Path $screensDir).Path.Length).TrimStart('\\')
                 $targetFile = Join-Path $destScreens $relative
                 $targetDir = Split-Path -Parent $targetFile
                 if (-not (Test-Path $targetDir)) {
                   New-Item -ItemType Directory -Path $targetDir -Force | Out-Null
                 }
-                Copy-Item -Path $_.FullName -Destination $targetFile -Force
+                try {
+                  [System.IO.File]::Copy($_.FullName, $targetFile, $true)
+                } catch {
+                  Write-Host "Warning: Could not copy $($_.FullName): $_"
+                }
               }
             }
           }
