@@ -4,7 +4,7 @@ param(
   [string]$ScreensDir,
   [string]$PublicScreensBaseUrl,
   [string]$TempRoot,
-  [string]$ToRecipients = 'lokesh.jain@absa.africa;Harshal.Shindhe@absa.africa;Santosh.Swain@absa.africa;Amruta.Matre@absa.africa;Puja.Rane@absa.africa;Shweta.Ghavare@absa.africa;Deepak.Sharma4@ltm.com;Vivek.Agarwal@absa.africa',
+  [string]$ToRecipients = 'lokesh.jain@ltm.com;lokesh.10699014@ltimindtree.com',
   [string]$CcRecipients = '',
   [switch]$NoSend
 )
