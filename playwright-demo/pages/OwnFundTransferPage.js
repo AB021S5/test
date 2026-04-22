@@ -2,9 +2,10 @@ const fs = require('fs');
 const path = require('path');
 
 class OwnFundTransferPage {
-  constructor(page, testInfo = null) {
+  constructor(page, testInfo = null, options = {}) {
     this.page = page;
     this.testInfo = testInfo;
+    this.screenshotScenario = String(options.screenshotScenario || '').trim();
     this.selectedFromAccountValue = null;
     this.selectedFromAccountText = '';
 
@@ -171,7 +172,7 @@ class OwnFundTransferPage {
     // Use original option value; re-reading from DOM after AJAX can shift values.
     this.selectedFromAccountValue = option.value;
     this.selectedFromAccountText = await this.getSelectedOptionText(this.fromAccountSelect);
-    await this.takeScreenshot(`01_from_account_${wantedType}_selected`);
+    await this.captureStep(`01_from_account_${wantedType}_selected`);
   }
 
   async selectToAccountOption(option, wantedType) {
@@ -191,7 +192,7 @@ class OwnFundTransferPage {
       throw new Error('From and To account resolved to the same account after selection.');
     }
 
-    await this.takeScreenshot(`02_to_account_${wantedType}_selected`);
+    await this.captureStep(`02_to_account_${wantedType}_selected`);
   }
 
   async clickFirstNext() {
@@ -204,6 +205,7 @@ class OwnFundTransferPage {
       throw new Error('SAME_ACCOUNT_ERROR: From and To account are the same after Next click.');
     }
     await this.amountInput.waitFor({ state: 'visible', timeout: 15000 });
+    await this.captureStep('03_amount_screen_loaded');
   }
 
   async enterPaymentDetails(amount, description) {
@@ -214,16 +216,18 @@ class OwnFundTransferPage {
     await this.paymentDescriptionInput.waitFor({ state: 'visible', timeout: 7000 });
     await this.paymentDescriptionInput.fill(description);
 
-    await this.takeScreenshot('04_payment_details_entered');
+    await this.captureStep('04_payment_details_entered');
   }
 
   async clickSecondNext() {
     await this.secondNextButton.waitFor({ state: 'visible', timeout: 7000 });
     await this.secondNextButton.click();
     await this.confirmButton.waitFor({ state: 'visible', timeout: 7000 });
+    await this.captureStep('05_confirmation_screen_loaded');
   }
 
   async confirmTransfer() {
+    await this.captureStep('06_before_confirm_click');
     await this.confirmButton.waitFor({ state: 'visible', timeout: 7000 });
     await this.confirmButton.click();
     await this.page.waitForLoadState('domcontentloaded');
@@ -231,11 +235,12 @@ class OwnFundTransferPage {
 
   async waitForSubmittedMessage() {
     await this.submittedMessage.waitFor({ state: 'visible', timeout: 7000 });
-    await this.takeScreenshot('04_transfer_submitted_message');
+    await this.captureStep('07_transfer_submitted_message', { waitMs: 1200 });
   }
 
   async performTransfer({ fromAccountType, toAccountType, amount, description }) {
     await this.openFundTransferForm();
+    await this.captureStep('00_transfer_form_opened');
 
     const fromType = this.getAccountType(fromAccountType);
     const toType = this.getAccountType(toAccountType);
@@ -299,14 +304,36 @@ class OwnFundTransferPage {
     throw lastError || new Error('No valid from/to account combination completed the fund transfer.');
   }
 
+  sanitizePathPart(value) {
+    return String(value || '')
+      .toLowerCase()
+      .replace(/[^a-z0-9-_]+/g, '-')
+      .replace(/-+/g, '-')
+      .replace(/^-|-$/g, '');
+  }
+
+  async captureStep(name, options = {}) {
+    const waitMs = Number(options.waitMs ?? 250);
+    if (waitMs > 0) {
+      await this.page.waitForTimeout(waitMs);
+    }
+    await this.takeScreenshot(name);
+  }
+
   async takeScreenshot(name) {
     if (process.env.PW_CAPTURE_STEPS === '0') {
       return;
     }
 
-    const suiteName = this.testInfo && this.testInfo.file
+    let suiteName = this.testInfo && this.testInfo.file
       ? path.basename(this.testInfo.file, '.spec.js')
       : 'general';
+
+    const scenarioPart = this.sanitizePathPart(this.screenshotScenario);
+    if (scenarioPart) {
+      suiteName = `${suiteName}-${scenarioPart}`;
+    }
+
     const suiteFolder = path.join('screenshots', suiteName);
     fs.mkdirSync(suiteFolder, { recursive: true });
 
