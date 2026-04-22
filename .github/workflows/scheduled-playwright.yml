@@ -161,6 +161,8 @@ jobs:
         shell: powershell
         run: |
           $bashDirs = @(
+            'C:\Users\AB021S5\AppData\Local\Programs\Git\bin',
+            'C:\Users\AB021S5\AppData\Local\Programs\Git\usr\bin',
             'C:\Program Files\Git\bin',
             'C:\Program Files\Git\usr\bin'
           )
