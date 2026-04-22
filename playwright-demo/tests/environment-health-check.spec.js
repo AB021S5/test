@@ -10,7 +10,10 @@ const path = require('path');
  * Fail = any login step fails.
  */
 test('SC UAT environment health check', async ({ page }, testInfo) => {
-  const loginPage = new LoginPage(page, testInfo);
+  const loginPage = new LoginPage(page, testInfo, {
+    captureLoginSteps: true,
+    capturePostLoginLanding: true,
+  });
   const suiteFolder = path.join('screenshots', 'environment-health-check');
   
   try {

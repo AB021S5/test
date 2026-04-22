@@ -2,9 +2,11 @@ const fs = require('fs');
 const path = require('path');
 
 class LoginPage {
-  constructor(page, testInfo = null) {
+  constructor(page, testInfo = null, options = {}) {
     this.page = page;
     this.testInfo = testInfo;
+    this.captureLoginSteps = Boolean(options.captureLoginSteps);
+    this.capturePostLoginLanding = options.capturePostLoginLanding !== false;
     // XPath: find input/textbox following a cell containing "Username" text
     this.usernameInput = page.locator("//td[contains(., 'Username')]/following::input[1] | //td[contains(., 'Username')]/following::textarea[1]");
     this.passwordInput = page.locator("//td[contains(., 'Password')]/following::input[1] | //td[contains(., 'Password')]/following::textarea[1]");
@@ -55,14 +57,26 @@ class LoginPage {
 
       await this.usernameInput.waitFor({ state: 'visible', timeout: 7000 });
     }
+
+    if (this.captureLoginSteps) {
+      await this.takeScreenshot('00_login_page_visible');
+    }
   }
 
   async enterUsername(username) {
     await this.usernameInput.fill(username);
+
+    if (this.captureLoginSteps) {
+      await this.takeScreenshot('01_username_entered');
+    }
   }
 
   async enterPassword(password) {
     await this.passwordInput.fill(password);
+
+    if (this.captureLoginSteps) {
+      await this.takeScreenshot('02_password_entered');
+    }
   }
 
   async clickLoginButton() {
@@ -98,10 +112,18 @@ class LoginPage {
   async enterOtp(otp) {
     await this.otpInput.waitFor({ state: 'visible', timeout: 7000 });
     await this.otpInput.fill(otp);
+
+    if (this.captureLoginSteps) {
+      await this.takeScreenshot('03_otp_entered');
+    }
   }
 
   async clickNextButton() {
     await this.nextButton.click({ timeout: 7000, noWaitAfter: true });
+
+    if (this.captureLoginSteps) {
+      await this.takeScreenshot('04_next_clicked');
+    }
   }
 
   async waitForAtAGlance() {
@@ -135,6 +157,10 @@ class LoginPage {
 
     if (!homeReady) {
       throw new Error('Login succeeded but home page landmarks were not visible.');
+    }
+
+    if (this.captureLoginSteps || this.capturePostLoginLanding) {
+      await this.takeScreenshot('05_at_a_glance_home');
     }
 
   }
