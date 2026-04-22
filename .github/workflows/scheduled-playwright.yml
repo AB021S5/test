@@ -152,6 +152,19 @@ jobs:
               }
             }
 
+            Get-ChildItem -Path $destScreens -Directory -ErrorAction SilentlyContinue | ForEach-Object {
+              $suiteDir = $_
+              $rows = @()
+              Get-ChildItem -Path $suiteDir.FullName -Filter *.png -File -ErrorAction SilentlyContinue | Sort-Object Name | ForEach-Object {
+                $rows += '<tr><td style="padding:8px 10px;border:1px solid #ddd;">' + $_.Name + '</td><td style="padding:8px 10px;border:1px solid #ddd;"><a href="./' + $_.Name + '">Open</a></td><td style="padding:8px 10px;border:1px solid #ddd;"><a href="./' + $_.Name + '"><img src="./' + $_.Name + '" alt="' + $_.Name + '" style="max-width:240px;max-height:130px;border:1px solid #d9dee5;" /></a></td></tr>'
+              }
+              if ($rows.Count -eq 0) {
+                $rows = @('<tr><td colspan="3" style="padding:8px 10px;border:1px solid #ddd;">No screenshots found.</td></tr>')
+              }
+              $suiteIndexHtml = '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>' + $suiteDir.Name + ' Screenshots</title></head><body style="font-family:Arial,Helvetica,sans-serif;padding:16px;"><div style="margin-bottom:12px;"><a href="../index.html" style="text-decoration:none;color:#0d3d6b;font-size:13px;">&larr; Back to screenshots</a></div><h2 style="margin-top:0;">' + $suiteDir.Name + ' - Screenshots</h2><table style="border-collapse:collapse;width:100%;max-width:980px;"><tr><th style="text-align:left;padding:8px 10px;border:1px solid #ddd;background:#f2f5f8;">File</th><th style="text-align:left;padding:8px 10px;border:1px solid #ddd;background:#f2f5f8;">View</th><th style="text-align:left;padding:8px 10px;border:1px solid #ddd;background:#f2f5f8;">Preview</th></tr>' + ($rows -join '') + '</table></body></html>'
+              Set-Content -Path (Join-Path $suiteDir.FullName 'index.html') -Value $suiteIndexHtml -Encoding UTF8
+            }
+
             $screensIndexPath = Join-Path $destScreens 'index.html'
             if (-not (Test-Path $screensIndexPath)) {
               $suiteRows = @()
