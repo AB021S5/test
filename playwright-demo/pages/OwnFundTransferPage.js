@@ -273,6 +273,20 @@ class OwnFundTransferPage {
       const hasResult = await this.transferResultHeading.isVisible().catch(() => false);
       if (hasResult) {
         await this.transferResultHeading.scrollIntoViewIfNeeded().catch(() => {});
+        // Always take the result screenshot first so evidence is captured
+        await this.captureStep('07_transfer_result_page', { waitMs: 1200 });
+
+        // Detect bank-side business failure on the result page
+        const failureText = await this.page.evaluate(() => {
+          const body = document.body.innerText || '';
+          if (/fund transfer failed/i.test(body)) return 'Fund transfer failed.';
+          if (/unable to confirm the status/i.test(body)) return 'System was unable to confirm the status of this transaction.';
+          return null;
+        }).catch(() => null);
+        if (failureText) {
+          throw new Error(`TRANSFER_FAILED: Bank returned a failure on the result page — "${failureText}"`);
+        }
+
         // Try to read the transaction reference — soft failure if not present
         const hasRef = await this.transactionReferenceNumber.isVisible({ timeout: 5000 }).catch(() => false);
         if (hasRef) {
@@ -285,7 +299,6 @@ class OwnFundTransferPage {
             }).catch(() => {});
           }
         }
-        await this.captureStep('07_transfer_result_page', { waitMs: 1200 });
         return;
       }
       // After 20s: if the Confirm button is still visible, server silently dropped the request
@@ -306,6 +319,15 @@ class OwnFundTransferPage {
     }
     await this.transferResultHeading.scrollIntoViewIfNeeded().catch(() => {});
     await this.captureStep('07_transfer_result_page', { waitMs: 1200 });
+    const failureTextFinal = await this.page.evaluate(() => {
+      const body = document.body.innerText || '';
+      if (/fund transfer failed/i.test(body)) return 'Fund transfer failed.';
+      if (/unable to confirm the status/i.test(body)) return 'System was unable to confirm the status of this transaction.';
+      return null;
+    }).catch(() => null);
+    if (failureTextFinal) {
+      throw new Error(`TRANSFER_FAILED: Bank returned a failure on the result page — "${failureTextFinal}"`);
+    }
   }
 
   async performTransfer({ fromAccountType, toAccountType, amount, description }) {
