@@ -12,7 +12,7 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-$envFile = Join-Path $PSScriptRoot "playwright-demo\.env"
+$envFile = Join-Path $PSScriptRoot ".env"
 if (-not (Test-Path $envFile)) {
         Write-Error "Could not find .env file at: $envFile"
         exit 1

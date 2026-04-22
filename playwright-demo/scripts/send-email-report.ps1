@@ -303,7 +303,7 @@ if ([string]::IsNullOrWhiteSpace($WorkspaceRoot)) {
 }
 
 if ([string]::IsNullOrWhiteSpace($TemplatePath)) {
-  $TemplatePath = Join-Path $WorkspaceRoot 'email-report-preview.html'
+  $TemplatePath = Join-Path $WorkspaceRoot 'playwright-demo\email-report-preview.html'
 }
 
 if ([string]::IsNullOrWhiteSpace($ScreensDir)) {
