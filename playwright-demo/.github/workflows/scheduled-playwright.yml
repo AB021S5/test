@@ -123,10 +123,30 @@ jobs:
         shell: powershell
         run: |
           $pagesDir = Join-Path $env:RUNNER_TEMP 'gh-pages'
+          if (Test-Path $pagesDir) {
+            Remove-Item -Path $pagesDir -Recurse -Force
+          }
           New-Item -ItemType Directory -Path $pagesDir -Force | Out-Null
           $screensDir = 'screenshots'
           if (Test-Path $screensDir) {
-            Copy-Item $screensDir -Destination (Join-Path $pagesDir 'screenshots') -Recurse -Force
+            $destScreens = Join-Path $pagesDir 'screenshots'
+            New-Item -ItemType Directory -Path $destScreens -Force | Out-Null
+            Get-ChildItem -Path $screensDir -Recurse | ForEach-Object {
+              if ($_.PSIsContainer) {
+                $relative = $_.FullName.Substring((Resolve-Path $screensDir).Path.Length).TrimStart('\\')
+                if ($relative) {
+                  New-Item -ItemType Directory -Path (Join-Path $destScreens $relative) -Force | Out-Null
+                }
+              } elseif (($_.Attributes -band [IO.FileAttributes]::ReparsePoint) -eq 0) {
+                $relative = $_.FullName.Substring((Resolve-Path $screensDir).Path.Length).TrimStart('\\')
+                $targetFile = Join-Path $destScreens $relative
+                $targetDir = Split-Path -Parent $targetFile
+                if (-not (Test-Path $targetDir)) {
+                  New-Item -ItemType Directory -Path $targetDir -Force | Out-Null
+                }
+                Copy-Item -Path $_.FullName -Destination $targetFile -Force
+              }
+            }
           }
           $rootIndex = '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Playwright Screenshots</title></head><body style="font-family:Arial,Helvetica,sans-serif;padding:24px;"><h2>Playwright Test Screenshots</h2><p><a href="screenshots/">Browse screenshots</a></p></body></html>'
           Set-Content -Path (Join-Path $pagesDir 'index.html') -Value $rootIndex -Encoding UTF8
@@ -134,11 +154,9 @@ jobs:
 
       - name: Upload Pages artifact
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-pages-artifact@v3
         with:
-          name: github-pages
           path: ${{ runner.temp }}/gh-pages
-          retention-days: 1
 
       - name: Deploy to GitHub Pages
         id: deploy_pages
