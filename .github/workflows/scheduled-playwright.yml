@@ -19,9 +19,6 @@ jobs:
   run-tests:
     runs-on: self-hosted
     timeout-minutes: 45
-    environment:
-      name: github-pages
-      url: https://AB021S5.github.io/test/
 
     defaults:
       run:
