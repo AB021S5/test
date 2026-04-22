@@ -156,6 +156,13 @@ class LoginPage {
     }
 
     if (!homeReady) {
+      // Check if the page is showing a 504 error before throwing a generic error
+      const has504 = await this.page.evaluate(() =>
+        document.body && document.body.innerText.includes('504 Gateway Time-out')
+      ).catch(() => false);
+      if (has504) {
+        throw new Error('SERVICE_504: Server returned 504 Gateway Time-out during login/home page load.');
+      }
       throw new Error('Login succeeded but home page landmarks were not visible.');
     }
 

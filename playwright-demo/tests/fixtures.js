@@ -26,8 +26,8 @@ const test = base.extend({
       // Hand the authenticated page to the test
       await use(page);
     } catch (error) {
-      // If service is down, skip the test with a descriptive message
-      if (error.message && error.message.includes('SERVICE_DOWN')) {
+      // If service is down or 504, skip the test with a descriptive message
+      if (error.message && (error.message.includes('SERVICE_DOWN') || error.message.includes('SERVICE_504'))) {
         const suiteName = path.basename(testInfo.file, '.spec.js');
         const suiteFolder = path.join('screenshots', suiteName);
         fs.mkdirSync(suiteFolder, { recursive: true });

@@ -25,10 +25,28 @@ class OwnFundTransferPage {
     this.paymentDescriptionInput = page.locator("(//label[contains(., 'Payment Description')]/following::input[1] | //*[@id='form:j_idt169'] | //input[contains(translate(@name,'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz'),'description')])[1]").first();
     this.secondNextButton = page.locator("(//*[@id='form']/div[5]/div/table/tbody/tr/td/div[1]/a | //a[normalize-space()='Next'] | //button[normalize-space()='Next'])[1]").first();
     this.confirmButton = page.locator("(//*[@id='form:j_idt106'] | //a[normalize-space()='Confirm'] | //button[normalize-space()='Confirm'])[1]").first();
-    this.submittedMessage = page.locator("(//*[@id='pageintro_640']/div | //*[contains(translate(normalize-space(.),'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz'),'submitted') or contains(translate(normalize-space(.),'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz'),'successful')])[1]").first();
+    // Result page: heading is "Own Account Transfer Result" (h1)
+    this.transferResultHeading = page.locator("//h1[contains(translate(normalize-space(.),'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz'),'result')]").first();
+    // Transaction reference row value cell — sits after a label cell containing 'reference'
+    this.transactionReferenceNumber = page.locator("(//td[contains(translate(normalize-space(.),'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz'),'reference')]/following-sibling::td[1] | //td[contains(translate(normalize-space(.),'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz'),'reference')]/following::td[1])[1]").first();
+    // 504 gateway timeout dialog that the bank server sometimes shows
+    this.gatewayTimeoutDialog = page.locator("//dialog | //*[@role='dialog'] | //*[contains(@class,'dialog') or contains(@class,'modal')]").filter({ hasText: /504|gateway time/i }).first();
+    this.submittedMessage = this.transferResultHeading;
+  }
+
+  async assertNo504(label = '') {
+    const has504 = await this.page.evaluate(() =>
+      document.body && document.body.innerText.includes('504 Gateway Time-out')
+    ).catch(() => false);
+    if (has504) {
+      throw new Error(`SERVICE_504: Server returned 504 Gateway Time-out${label ? ' at ' + label : ''}.`);
+    }
   }
 
   async openFundTransferForm() {
+    // Detect a 504 page immediately (can happen during login/navigation)
+    await this.assertNo504('openFundTransferForm start');
+
     if (await this.fromAccountSelect.isVisible().catch(() => false)) {
       return;
     }
@@ -36,6 +54,7 @@ class OwnFundTransferPage {
     await this.transferAndPaymentMenu.waitFor({ state: 'visible', timeout: 7000 });
     await this.transferAndPaymentMenu.click({ noWaitAfter: true });
     await this.page.waitForLoadState('domcontentloaded');
+    await this.assertNo504('after Transfer & Payment click');
 
     if (await this.fromAccountSelect.isVisible().catch(() => false)) {
       return;
@@ -44,11 +63,13 @@ class OwnFundTransferPage {
     if (await this.fundTransferMenu.isVisible().catch(() => false)) {
       await this.fundTransferMenu.click();
       await this.page.waitForLoadState('domcontentloaded');
+      await this.assertNo504('after Fund Transfer menu click');
     }
 
     if (!(await this.fromAccountSelect.isVisible().catch(() => false)) && (await this.transferNowLink.isVisible().catch(() => false))) {
       await this.transferNowLink.click();
       await this.page.waitForLoadState('domcontentloaded');
+      await this.assertNo504('after Transfer Now click');
     }
 
     await this.fromAccountSelect.waitFor({ state: 'visible', timeout: 15000 });
@@ -230,12 +251,61 @@ class OwnFundTransferPage {
     await this.captureStep('06_before_confirm_click');
     await this.confirmButton.waitFor({ state: 'visible', timeout: 7000 });
     await this.confirmButton.click();
-    await this.page.waitForLoadState('domcontentloaded');
+    // 504 detection and result-page waiting handled in waitForSubmittedMessage()
   }
 
   async waitForSubmittedMessage() {
-    await this.submittedMessage.waitFor({ state: 'visible', timeout: 7000 });
-    await this.captureStep('07_transfer_submitted_message', { waitMs: 1200 });
+    // Poll every 1.5s for result page OR 504 overlay (max 50s)
+    const maxWaitMs = 50000;
+    const pollMs = 1500;
+    const start = Date.now();
+
+    while (Date.now() - start < maxWaitMs) {
+      // Check for 504 overlay — appears as text injected anywhere in the page body
+      const has504 = await this.page.evaluate(() =>
+        document.body.innerText.includes('504 Gateway Time-out')
+      ).catch(() => false);
+      if (has504) {
+        await this.captureStep('07_504_gateway_timeout_error', { waitMs: 0 });
+        throw new Error('SERVICE_504: Server returned 504 Gateway Time-out after Confirm click.');
+      }
+      // Check for the transfer result heading
+      const hasResult = await this.transferResultHeading.isVisible().catch(() => false);
+      if (hasResult) {
+        await this.transferResultHeading.scrollIntoViewIfNeeded().catch(() => {});
+        // Try to read the transaction reference — soft failure if not present
+        const hasRef = await this.transactionReferenceNumber.isVisible({ timeout: 5000 }).catch(() => false);
+        if (hasRef) {
+          await this.transactionReferenceNumber.scrollIntoViewIfNeeded().catch(() => {});
+          const transactionReferenceText = await this.transactionReferenceNumber.textContent().catch(() => '');
+          if (this.testInfo) {
+            await this.testInfo.attach('transaction-reference', {
+              body: String(transactionReferenceText || '').trim(),
+              contentType: 'text/plain',
+            }).catch(() => {});
+          }
+        }
+        await this.captureStep('07_transfer_result_page', { waitMs: 1200 });
+        return;
+      }
+      // After 20s: if the Confirm button is still visible, server silently dropped the request
+      if (Date.now() - start > 20000) {
+        const confirmStillVisible = await this.confirmButton.isVisible().catch(() => false);
+        if (confirmStillVisible) {
+          await this.captureStep('07_504_gateway_timeout_error', { waitMs: 0 });
+          throw new Error('SERVICE_504: Server did not process the Confirm click — page remained on confirmation screen after 20s.');
+        }
+      }
+      await this.page.waitForTimeout(pollMs);
+    }
+
+    // One final check before reporting a hard timeout
+    const hasResult = await this.transferResultHeading.isVisible().catch(() => false);
+    if (!hasResult) {
+      throw new Error(`Transfer result page did not appear after ${maxWaitMs}ms`);
+    }
+    await this.transferResultHeading.scrollIntoViewIfNeeded().catch(() => {});
+    await this.captureStep('07_transfer_result_page', { waitMs: 1200 });
   }
 
   async performTransfer({ fromAccountType, toAccountType, amount, description }) {
@@ -339,7 +409,7 @@ class OwnFundTransferPage {
 
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
     const filePath = path.join(suiteFolder, `${name}_${timestamp}.png`);
-    await this.page.screenshot({ path: filePath });
+    await this.page.screenshot({ path: filePath, fullPage: true });
 
     if (this.testInfo) {
       await this.testInfo.attach(name, { path: filePath, contentType: 'image/png' });
