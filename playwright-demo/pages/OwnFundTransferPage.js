@@ -186,65 +186,90 @@ class OwnFundTransferPage {
   }
 
   async selectFromAccountOption(option, wantedType) {
-    await this.fromAccountSelect.waitFor({ state: 'visible', timeout: 7000 });
-    await this.fromAccountSelect.selectOption(option.value);
-    // Wait for JSF AJAX to complete (networkidle lets partial updates finish).
-    await this.page.waitForLoadState('networkidle').catch(() => {});
-    // Use original option value; re-reading from DOM after AJAX can shift values.
-    this.selectedFromAccountValue = option.value;
-    this.selectedFromAccountText = await this.getSelectedOptionText(this.fromAccountSelect);
-    await this.captureStep(`01_from_account_${wantedType}_selected`);
+    try {
+      await this.fromAccountSelect.waitFor({ state: 'visible', timeout: 7000 });
+      await this.fromAccountSelect.selectOption(option.value);
+      // Wait for JSF AJAX to complete (networkidle lets partial updates finish).
+      await this.page.waitForLoadState('networkidle').catch(() => {});
+      // Use original option value; re-reading from DOM after AJAX can shift values.
+      this.selectedFromAccountValue = option.value;
+      this.selectedFromAccountText = await this.getSelectedOptionText(this.fromAccountSelect);
+      await this.captureStep(`01_from_account_${wantedType}_selected`);
+    } catch (error) {
+      await this.captureStep(`01_from_account_error`, { waitMs: 0 });
+      throw error;
+    }
   }
 
   async selectToAccountOption(option, wantedType) {
-    await this.toAccountSelect.waitFor({ state: 'visible', timeout: 7000 });
-    await this.toAccountSelect.selectOption(option.value);
+    try {
+      await this.toAccountSelect.waitFor({ state: 'visible', timeout: 7000 });
+      await this.toAccountSelect.selectOption(option.value);
 
-    // Guard: compare by both value and normalized account number to catch same-account across differing IDs.
-    const norm = (s) => String(s || '').toLowerCase().replace(/\s+/g, ' ').trim();
-    const acctNum = (s) => { const m = norm(s).match(/^(\S+)/); return m ? m[1] : norm(s); };
-    const selectedToText = await this.getSelectedOptionText(this.toAccountSelect);
-    const selectedToValue = await this.getSelectedOptionValue(this.toAccountSelect);
-    const sameByValue = selectedToValue && this.selectedFromAccountValue &&
-      String(selectedToValue).trim() === String(this.selectedFromAccountValue).trim();
-    const sameByAcct = acctNum(selectedToText) && acctNum(this.selectedFromAccountText) &&
-      acctNum(selectedToText) === acctNum(this.selectedFromAccountText);
-    if (sameByValue || sameByAcct) {
-      throw new Error('From and To account resolved to the same account after selection.');
+      // Guard: compare by both value and normalized account number to catch same-account across differing IDs.
+      const norm = (s) => String(s || '').toLowerCase().replace(/\s+/g, ' ').trim();
+      const acctNum = (s) => { const m = norm(s).match(/^(\S+)/); return m ? m[1] : norm(s); };
+      const selectedToText = await this.getSelectedOptionText(this.toAccountSelect);
+      const selectedToValue = await this.getSelectedOptionValue(this.toAccountSelect);
+      const sameByValue = selectedToValue && this.selectedFromAccountValue &&
+        String(selectedToValue).trim() === String(this.selectedFromAccountValue).trim();
+      const sameByAcct = acctNum(selectedToText) && acctNum(this.selectedFromAccountText) &&
+        acctNum(selectedToText) === acctNum(this.selectedFromAccountText);
+      if (sameByValue || sameByAcct) {
+        throw new Error('From and To account resolved to the same account after selection.');
+      }
+
+      await this.captureStep(`02_to_account_${wantedType}_selected`);
+    } catch (error) {
+      await this.captureStep(`02_to_account_error`, { waitMs: 0 });
+      throw error;
     }
-
-    await this.captureStep(`02_to_account_${wantedType}_selected`);
   }
 
   async clickFirstNext() {
-    await this.firstNextButton.waitFor({ state: 'visible', timeout: 7000 });
-    await this.firstNextButton.click();
-    await this.page.waitForLoadState('domcontentloaded').catch(() => {});
-    // Detect same-account validation error immediately.
-    const alertMsg = this.page.locator("//*[contains(normalize-space(.),'From') and contains(normalize-space(.),'To') and contains(normalize-space(.),'same')]").first();
-    if (await alertMsg.isVisible().catch(() => false)) {
-      throw new Error('SAME_ACCOUNT_ERROR: From and To account are the same after Next click.');
+    try {
+      await this.firstNextButton.waitFor({ state: 'visible', timeout: 7000 });
+      await this.firstNextButton.click();
+      await this.page.waitForLoadState('domcontentloaded').catch(() => {});
+      // Detect same-account validation error immediately.
+      const alertMsg = this.page.locator("//*[contains(normalize-space(.),'From') and contains(normalize-space(.),'To') and contains(normalize-space(.),'same')]").first();
+      if (await alertMsg.isVisible().catch(() => false)) {
+        throw new Error('SAME_ACCOUNT_ERROR: From and To account are the same after Next click.');
+      }
+      await this.amountInput.waitFor({ state: 'visible', timeout: 15000 });
+      await this.captureStep('03_amount_screen_loaded');
+    } catch (error) {
+      await this.captureStep('03_first_next_error', { waitMs: 0 });
+      throw error;
     }
-    await this.amountInput.waitFor({ state: 'visible', timeout: 15000 });
-    await this.captureStep('03_amount_screen_loaded');
   }
 
   async enterPaymentDetails(amount, description) {
-    await this.amountInput.waitFor({ state: 'visible', timeout: 7000 });
-    await this.amountInput.fill(String(amount));
+    try {
+      await this.amountInput.waitFor({ state: 'visible', timeout: 7000 });
+      await this.amountInput.fill(String(amount));
 
-    // Wait for payment description field with reduced timeout
-    await this.paymentDescriptionInput.waitFor({ state: 'visible', timeout: 7000 });
-    await this.paymentDescriptionInput.fill(description);
+      // Wait for payment description field with reduced timeout
+      await this.paymentDescriptionInput.waitFor({ state: 'visible', timeout: 7000 });
+      await this.paymentDescriptionInput.fill(description);
 
-    await this.captureStep('04_payment_details_entered');
+      await this.captureStep('04_payment_details_entered');
+    } catch (error) {
+      await this.captureStep('04_payment_details_error', { waitMs: 0 });
+      throw error;
+    }
   }
 
   async clickSecondNext() {
-    await this.secondNextButton.waitFor({ state: 'visible', timeout: 7000 });
-    await this.secondNextButton.click();
-    await this.confirmButton.waitFor({ state: 'visible', timeout: 7000 });
-    await this.captureStep('05_confirmation_screen_loaded');
+    try {
+      await this.secondNextButton.waitFor({ state: 'visible', timeout: 7000 });
+      await this.secondNextButton.click();
+      await this.confirmButton.waitFor({ state: 'visible', timeout: 7000 });
+      await this.captureStep('05_confirmation_screen_loaded');
+    } catch (error) {
+      await this.captureStep('05_second_next_error', { waitMs: 0 });
+      throw error;
+    }
   }
 
   async confirmTransfer() {
