@@ -185,7 +185,7 @@ class LoginPage {
 
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
     const filePath = path.join(suiteFolder, `${name}_${timestamp}.png`);
-    await this.page.screenshot({ path: filePath });
+    await this.page.screenshot({ path: filePath, fullPage: true });
     if (this.testInfo) {
       await this.testInfo.attach(name, { path: filePath, contentType: 'image/png' });
     }

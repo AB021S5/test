@@ -11,7 +11,7 @@ const path = require('path');
 const test = base.extend({
   loggedInPage: async ({ page }, use, testInfo) => {
     const loginPage = new LoginPage(page, testInfo, {
-      captureLoginSteps: false,
+      captureLoginSteps: true,
       capturePostLoginLanding: true,
     });
 

@@ -27,13 +27,14 @@ class OtpManagementPage {
     await this.customerServiceMenu.waitFor({ state: 'visible', timeout: 7000 });
     await this.customerServiceMenu.click();
     await this.page.waitForLoadState('domcontentloaded');
+    await this.takeScreenshot('01_customer_service_opened');
   }
 
   async openOtpManagement() {
     await this.otpManagementMenu.waitFor({ state: 'visible', timeout: 7000 });
     await this.otpManagementMenu.click();
-
     await this.page.waitForLoadState('domcontentloaded');
+    await this.takeScreenshot('02_otp_management_opened');
   }
 
   async selectUnselectedRadioButton() {
@@ -54,20 +55,23 @@ class OtpManagementPage {
     await this.nextButton.first().waitFor({ state: 'visible', timeout: 7000 });
     await this.nextButton.first().click();
     await this.page.waitForLoadState('domcontentloaded');
+    await this.takeScreenshot('04_otp_continue_clicked');
   }
 
   async enterOtpAndSubmit(otp) {
     await this.otpInput.waitFor({ state: 'visible', timeout: 7000 });
     await this.otpInput.fill(otp);
+    await this.takeScreenshot('05_otp_code_entered');
 
     await this.submitButton.first().waitFor({ state: 'visible', timeout: 7000 });
     await this.submitButton.first().click();
     await this.page.waitForLoadState('domcontentloaded');
+    await this.takeScreenshot('06_otp_submitted');
   }
 
   async waitForSuccessScreen() {
     await this.successMessage.waitFor({ state: 'visible', timeout: 7000 });
-    await this.takeScreenshot('04_otp_management_success');
+    await this.takeScreenshot('07_otp_management_success');
   }
 
   async takeScreenshot(name) {
@@ -83,7 +87,7 @@ class OtpManagementPage {
 
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
     const filePath = path.join(suiteFolder, `${name}_${timestamp}.png`);
-    await this.page.screenshot({ path: filePath });
+    await this.page.screenshot({ path: filePath, fullPage: true });
 
     if (this.testInfo) {
       await this.testInfo.attach(name, { path: filePath, contentType: 'image/png' });

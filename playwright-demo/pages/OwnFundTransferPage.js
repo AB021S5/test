@@ -306,7 +306,7 @@ class OwnFundTransferPage {
         const confirmStillVisible = await this.confirmButton.isVisible().catch(() => false);
         if (confirmStillVisible) {
           await this.captureStep('07_504_gateway_timeout_error', { waitMs: 0 });
-          throw new Error('SERVICE_504: Server did not process the Confirm click — page remained on confirmation screen after 20s.');
+          throw new Error('SERVICE_CONFIRM_STUCK: Server did not process the Confirm click — page remained on confirmation screen after 20s.');
         }
       }
       await this.page.waitForTimeout(pollMs);

@@ -12,6 +12,7 @@ class CasaAccountDetailsPage {
 
   async clickacct() {
     await this.firstAccountLink.waitFor({ state: 'visible', timeout: 7000 });
+    await this.takeScreenshot('00_casa_accounts_list');
     await this.firstAccountLink.click();
     await this.page.waitForLoadState('domcontentloaded');
     await this.takeScreenshot('01_casa_account_opened');
@@ -37,7 +38,6 @@ class CasaAccountDetailsPage {
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
     const filePath = path.join(suiteFolder, `${name}_${timestamp}.png`);
     await this.page.screenshot({ path: filePath, fullPage: true });
-
     if (this.testInfo) {
       await this.testInfo.attach(name, { path: filePath, contentType: 'image/png' });
     }
